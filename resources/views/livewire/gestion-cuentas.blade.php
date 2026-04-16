@@ -14,13 +14,13 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
         $saldo_inicial = 0,
         $activo = true;
 
-    // Campos Cuenta (RECUPERADOS)
+    // Campos Cuenta
     public $mostrarRendimiento = false,
         $tasa_rendimiento,
         $tope_rendimiento,
         $tasa_excedente;
 
-    // Campos Tarjeta (RECUPERADOS)
+    // Campos Tarjeta
     public $limite_credito = 0,
         $dia_corte = 1,
         $dia_pago = 10;
@@ -186,15 +186,27 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
 
                 <form wire:submit.prevent="guardar" class="space-y-5">
                     @if ($tab == 'categorias')
-                        {{-- Selector Emoji --}}
+                        {{-- Selector Emoji con Ayuda y Autolimpieza --}}
                         <div class="bg-indigo-50/50 p-6 rounded-[2.5rem] border border-indigo-100 flex flex-col items-center gap-4"
                             x-data="{ icono: @entangle('icono_categoria') }">
                             <div class="flex items-center gap-5">
                                 <div class="w-20 h-20 bg-white rounded-full shadow-xl flex items-center justify-center text-5xl border-4 border-white"
                                     x-text="icono"></div>
-                                <input type="text" x-bind:value="icono"
+                                <input type="text" placeholder="😀"
+                                    class="w-20 bg-white border-2 border-indigo-100 rounded-2xl p-4 text-center text-2xl outline-none focus:ring-4 focus:ring-indigo-200 transition-all"
+                                    x-bind:value="icono" @focus="$el.value = ''"
                                     @input="icono = $el.value; $wire.set('icono_categoria', $el.value)"
-                                    class="w-20 bg-white border-2 border-indigo-100 rounded-2xl p-4 text-center text-2xl outline-none">
+                                    @change="$wire.set('icono_categoria', $el.value)">
+                            </div>
+                            <div class="text-center space-y-1">
+                                <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Atajos de
+                                    teclado:</p>
+                                <p class="text-[9px] font-bold text-slate-500 italic">
+                                    <span class="bg-white px-1.5 py-0.5 rounded border shadow-sm">Win + .</span> en PC
+                                    <span class="mx-1">/</span>
+                                    <span class="bg-white px-1.5 py-0.5 rounded border shadow-sm">Cmd + Ctrl +
+                                        Espacio</span> en Mac
+                                </p>
                             </div>
                         </div>
                         <input type="text" wire:model="nombre_categoria" placeholder="NOMBRE CATEGORÍA"
@@ -203,12 +215,11 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                         {{-- Campos Cuenta/Tarjeta --}}
                         <div class="flex gap-4">
                             <input type="text" wire:model="nombre" placeholder="NOMBRE"
-                                class="flex-1 border-none bg-slate-50 rounded-2xl p-4 font-bold">
+                                class="flex-1 border-none bg-slate-50 rounded-2xl p-4 font-bold shadow-sm">
                             <input type="color" wire:model="color"
                                 class="w-16 h-14 p-1 rounded-2xl border-none bg-slate-50 cursor-pointer shadow-sm">
                         </div>
 
-                        {{-- Switch de Estado (Activo/Inactivo) --}}
                         <div
                             class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                             <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Estatus
@@ -226,7 +237,6 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                             <input type="number" step="0.01" wire:model="saldo_inicial"
                                 class="w-full bg-slate-50 border-none rounded-2xl p-4 font-black text-2xl text-emerald-600">
 
-                            {{-- Sección Rendimientos --}}
                             <div
                                 class="flex items-center gap-4 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 border-dashed">
                                 <input type="checkbox" wire:model.live="mostrarRendimiento" id="chk"
@@ -306,7 +316,6 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                 </form>
             </div>
 
-            {{-- Sincronización Saldo (Solo Cuentas) --}}
             @if ($editando_id && $tab == 'cuentas')
                 <div class="bg-emerald-600 p-8 rounded-[3rem] text-white shadow-xl animate-in fade-in duration-500">
                     <h3 class="font-black italic text-xl mb-4">Sincronizar Saldo Real</h3>
