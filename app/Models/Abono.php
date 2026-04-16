@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Abono extends Model
 {
+    // 1. Actualizamos el fillable con los nombres de las nuevas tablas
     protected $fillable = [
         'monto', 
         'fecha', 
-        'cuenta_origen_id', 
-        'cuenta_destino_id', 
+        'cuenta_id',    // La que suelta el varo (BBVA)
+        'tarjeta_id',   // La que recibe el pago (NU Crédito)
         'notas'
     ];
 
@@ -20,13 +21,15 @@ class Abono extends Model
         'monto' => 'decimal:2'
     ];
 
-    public function origen(): BelongsTo
+    // 2. Relación con la Cuenta (De donde sale el dinero)
+    public function cuenta(): BelongsTo
     {
-        return $this->belongsTo(Cuenta::class, 'cuenta_origen_id');
+        return $this->belongsTo(Cuenta::class);
     }
 
-    public function destino(): BelongsTo
+    // 3. Relación con la Tarjeta (A donde entra el pago)
+    public function tarjeta(): BelongsTo
     {
-        return $this->belongsTo(Cuenta::class, 'cuenta_destino_id');
+        return $this->belongsTo(TarjetaCredito::class);
     }
 }

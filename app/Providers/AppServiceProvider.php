@@ -3,20 +3,23 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Livewire\Volt\Volt; // <-- No olvides esta línea
+use Illuminate\Support\Facades\Blade; // <-- Añade esta
+use Livewire\Volt\Volt;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void
-    {
-        //
-    }
-
     public function boot(): void
     {
-        // Esto le dice a Volt: "Busca aquí los componentes, no te hagas el sordo"
+        // 1. Esto ya lo tenías para los componentes Volt
         Volt::mount([
             resource_path('views/livewire'),
         ]);
+
+        // 2. ESTO ES LO QUE FALTA: Registrar el path de los componentes de Blade
+        // para que Laravel entienda qué significa "[layouts]"
+        Blade::componentNamespace('App\\Views\\Components', 'layouts');
+        
+        // O más directo para este error específico:
+        $this->loadViewsFrom(resource_path('views/components'), 'layouts');
     }
 }

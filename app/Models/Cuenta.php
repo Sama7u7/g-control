@@ -3,41 +3,69 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Cuenta extends Model
 {
-    protected $fillable = ['nombre', 'tipo', 'saldo_inicial', 'color'];
-
-    // Relación con Gastos e Ingresos
-    public function movimientos(): HasMany
-    {
-        return $this->hasMany(Movimiento::class);
-    }
-
-    // Abonos que salieron de esta cuenta (ej: Pagaste la tarjeta desde aquí)
-    public function abonosRealizados(): HasMany
-    {
-        return $this->hasMany(Abono::class, 'cuenta_origen_id');
-    }
-
-    // Abonos que entraron a esta cuenta (ej: El pago que recibió la tarjeta)
-    public function abonosRecibidos(): HasMany
-    {
-        return $this->hasMany(Abono::class, 'cuenta_destino_id');
-    }
+    protected $fillable = [
+        'nombre', 
+        'tipo', 
+        'saldo_inicial', 
+        'color', 
+        'tasa_rendimiento', 
+        'tope_rendimiento', 
+        'tasa_excedente'
+    ];
 
     /**
-     * ATRIBUTO DINÁMICO: Saldo Actual
-     * Esto reemplaza tus fórmulas de Excel.
+     * Esto hace que los cálculos aparezcan automáticamente 
+     * al convertir el modelo a JSON o Array.
      */
+    protected $appends = [
+        'saldo_actual', 
+        'rendimiento_mensual_estimado', 
+        'rendimiento_detallado'
+    ];
+
+    // 1. Relación polimórfica para gastos e ingresos
+    public function movimientos(): MorphMany
+    {
+        return $this->morphMany(Movimiento::class, 'movible');
+    }
+
+    // 2. Cálculo del saldo real (Activos)
     public function getSaldoActualAttribute()
     {
         $ingresos = $this->movimientos()->where('tipo', 'ingreso')->sum('monto');
         $gastos = $this->movimientos()->where('tipo', 'gasto')->sum('monto');
-        $abonosEnviados = $this->abonosRealizados()->sum('monto');
-        $abonosRecibidos = $this->abonosRecibidos()->sum('monto');
+        
+        // Descontamos lo que salió para pagar tarjetas de crédito
+        $pagosRealizados = Abono::where('cuenta_id', $this->id)->sum('monto');
 
-        return ($this->saldo_inicial + $ingresos + $abonosRecibidos) - ($gastos + $abonosEnviados);
+        return ($this->saldo_inicial + $ingresos) - ($gastos + $pagosRealizados);
+    }
+
+    // 3. Rendimiento Mensual Total (La suma de base + excedente)
+    public function getRendimientoMensualEstimadoAttribute()
+    {
+        $detalles = $this->rendimiento_detallado;
+        return $detalles ? ($detalles['base'] + $detalles['excedente']) : 0;
+    }
+
+    // 4. Desglose para el Dashboard (Rendimiento por rangos)
+    public function getRendimientoDetalladoAttribute()
+    {
+        if (!$this->tasa_rendimiento || $this->tasa_rendimiento <= 0) return null;
+
+        $saldo = $this->saldo_actual;
+        $tope = $this->tope_rendimiento ?? 0;
+        
+        $montoBase = ($tope > 0 && $saldo > $tope) ? $tope : $saldo;
+        $montoExcedente = ($tope > 0 && $saldo > $tope) ? ($saldo - $tope) : 0;
+
+        return [
+            'base' => ($montoBase * ($this->tasa_rendimiento / 100)) / 12,
+            'excedente' => ($montoExcedente * (($this->tasa_excedente ?? 0) / 100)) / 12,
+        ];
     }
 }
