@@ -22,27 +22,38 @@ new class extends Component {
     }
 }; ?>
 
-<div class="space-y-8">
+<div class="max-w-5xl mx-auto space-y-8 pb-20">
+    {{-- Header --}}
     <header>
-        <h1 class="text-3xl font-black text-slate-900">Resumen Mensual</h1>
-        <p class="text-slate-500 font-medium">Análisis de tus movimientos en {{ now()->translatedFormat('F') }}</p>
+        <h1 class="font-display font-extrabold text-[2rem] tracking-[-0.03em] text-ink leading-tight">Resumen Mensual
+        </h1>
+        <p class="font-body text-muted text-[0.95rem] mt-1">Análisis de tus movimientos en
+            {{ now()->translatedFormat('F') }}</p>
     </header>
 
-    <div class="grid grid-cols-2 gap-4">
-        <div class="bg-emerald-50 p-6 rounded-3xl border border-emerald-100">
-            <p class="text-emerald-600 text-xs font-bold uppercase">Ingresos Totales</p>
-            <h2 class="text-2xl font-black text-emerald-700 mt-1">${{ number_format($totalIngresos, 2) }}</h2>
+    {{-- Tarjetas de Ingresos / Egresos --}}
+    <div class="grid grid-cols-2 gap-6">
+        <div class="bg-green-light p-7 rounded-sys-card border border-border">
+            <p class="font-display font-bold text-[0.65rem] tracking-[0.14em] uppercase text-green mb-2">Ingresos Totales
+            </p>
+            <h2 class="font-display font-extrabold text-[1.8rem] tracking-[-0.04em] text-green">
+                ${{ number_format($totalIngresos, 2) }}</h2>
         </div>
-        <div class="bg-rose-50 p-6 rounded-3xl border border-rose-100">
-            <p class="text-rose-600 text-xs font-bold uppercase">Gastos Totales</p>
-            <h2 class="text-2xl font-black text-rose-700 mt-1">${{ number_format($totalGastos, 2) }}</h2>
+        <div class="bg-rose-light p-7 rounded-sys-card border border-border">
+            <p class="font-display font-bold text-[0.65rem] tracking-[0.14em] uppercase text-rose mb-2">Gastos Totales
+            </p>
+            <h2 class="font-display font-extrabold text-[1.8rem] tracking-[-0.04em] text-rose">
+                ${{ number_format($totalGastos, 2) }}</h2>
         </div>
     </div>
 
-    <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        <div class="p-6 bg-slate-50 border-b border-slate-100">
-            <h3 class="font-bold text-slate-800">Detalle del Mes</h3>
+    {{-- Lista de Movimientos --}}
+    <div class="bg-white rounded-sys-card border border-border overflow-hidden">
+        <div class="p-6 border-b border-border flex justify-between items-center">
+            <h3 class="font-display font-bold text-[1.25rem] tracking-[-0.02em] text-ink">Detalle del Mes</h3>
         </div>
-        @livewire('lista-movimientos')
+        <div class="p-6">
+            @livewire('lista-movimientos')
+        </div>
     </div>
 </div>

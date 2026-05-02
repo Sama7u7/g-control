@@ -5,21 +5,56 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $title ?? 'Mi Varo' }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tipografías Oficiales: Syne (Display) y DM Sans (Body) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400&display=swap"
         rel="stylesheet">
+
+    <!-- Tailwind CSS con Configuración del Design System -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ink: '#0D0D0F',
+                        muted: '#6B6B78',
+                        hint: '#A8A8B0',
+                        surface: '#F7F6F3',
+                        accent: '#4F3FF0',
+                        'accent-light': '#EAE8FF',
+                        green: '#16A34A',
+                        'green-light': '#DCFCE7',
+                        amber: '#D97706',
+                        'amber-light': '#FEF3C7',
+                        rose: '#E11D48',
+                        'rose-light': '#FFE4E6',
+                        border: 'rgba(0,0,0,0.08)'
+                    },
+                    fontFamily: {
+                        display: ['Syne', 'sans-serif'], // Para Títulos, Stats y Labels
+                        body: ['DM Sans', 'sans-serif'], // Para Párrafos y Body
+                    },
+                    borderRadius: {
+                        'sys-tag': '4px',
+                        'sys-input': '8px',
+                        'sys-stat': '12px',
+                        'sys-card': '20px',
+                        'sys-pill': '100px',
+                    }
+                }
+            }
+        }
+    </script>
+
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-    <style>
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-        }
-    </style>
+
     @livewireStyles
 </head>
 
-<body class="bg-gray-50 pb-24"> {{-- pb-24 para que el contenido no choque con el menú --}}
+<body class="bg-[#FAFAF8] text-ink font-body pb-24">
 
     <main class="max-w-7xl mx-auto px-4 py-6 md:py-10">
         {{ $slot }}
@@ -27,39 +62,48 @@
 
     @livewireScripts
 
-    {{-- EL MENÚ DEBE ENVOLVER TODOS LOS ICONOS --}}
+    {{-- Navegación Inferior --}}
     <nav
-        class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-6 py-3 flex justify-between items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
+        class="fixed bottom-0 left-0 right-0 bg-white border-t border-border px-6 py-3 flex justify-between items-center z-50">
 
-        <a href="/"
-            class="flex flex-col items-center {{ request()->is('/') ? 'text-indigo-600' : 'text-slate-400' }}">
+        <a href="/dashboard"
+            class="flex flex-col items-center {{ request()->is('dashboard') ? 'text-accent' : 'text-hint hover:text-muted' }} transition-colors gap-1">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path
                     d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            <span class="text-[10px] font-bold">Inicio</span>
+            <span class="font-display font-bold text-[0.6rem] uppercase tracking-[0.1em]">Inicio</span>
         </a>
 
         <a href="/resumen"
-            class="flex flex-col items-center {{ request()->is('resumen') ? 'text-indigo-600' : 'text-slate-400' }}">
+            class="flex flex-col items-center {{ request()->is('resumen') ? 'text-accent' : 'text-hint hover:text-muted' }} transition-colors gap-1">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path
                     d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            <span class="text-[10px] font-medium">Resumen</span>
+            <span class="font-display font-bold text-[0.6rem] uppercase tracking-[0.1em]">Resumen</span>
         </a>
 
         <a href="/configuracion"
-            class="flex flex-col items-center {{ request()->is('configuracion') ? 'text-indigo-600' : 'text-slate-400' }}">
+            class="flex flex-col items-center {{ request()->is('configuracion') ? 'text-accent' : 'text-hint hover:text-muted' }} transition-colors gap-1">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path
                     d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
             </svg>
-            <span class="text-[10px] font-medium">Ajustes</span>
+            <span class="font-display font-bold text-[0.6rem] uppercase tracking-[0.1em]">Ajustes</span>
         </a>
 
+        <form method="POST" action="{{ route('logout') }}" class="flex flex-col items-center">
+            @csrf
+            <button type="submit" class="flex flex-col items-center text-hint hover:text-rose transition-colors gap-1">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                </svg>
+                <span class="font-display font-bold text-[0.6rem] uppercase tracking-[0.1em]">Salir</span>
+            </button>
+        </form>
     </nav>
-
 </body>
 
 </html>
