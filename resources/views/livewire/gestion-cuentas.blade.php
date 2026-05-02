@@ -8,6 +8,7 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
     public $tab = 'cuentas',
         $editando_id = null;
 
+    public $timezone;
     // Campos Generales
     public $nombre,
         $color = '#6366f1',
@@ -144,82 +145,152 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
         session()->flash('ok', 'Saldo sincronizado ✅');
     }
 
+    public function mount()
+    {
+        // Cargamos la zona horaria actual del usuario
+        $this->timezone = auth()->user()->timezone ?? config('app.timezone');
+    }
+
+    public function guardarPerfil()
+    {
+        if (auth()->check()) {
+            // Si hay sesión, guardamos en la base de datos (PostgreSQL)
+            auth()
+                ->user()
+                ->update(['timezone' => $this->timezone]);
+        } else {
+            // Si es invitado, guardamos en la sesión del navegador
+            session(['user_timezone' => $this->timezone]);
+        }
+
+        session()->flash('ok', 'Zona horaria actualizada 🌍');
+    }
+
     public function with()
     {
+        // Filtramos para que solo aparezcan zonas de América y las de México al principio
+        $allTimezones = \DateTimeZone::listIdentifiers(\DateTimeZone::AMERICA);
+
+        // Zonas preferidas para que salgan hasta arriba del select
+        $preferidas = ['America/Mexico_City', 'America/Monterrey', 'America/Merida', 'America/Tijuana', 'America/Cancun'];
+
         return [
             'cuentas' => Cuenta::all(),
             'tarjetas' => TarjetaCredito::all(),
             'categorias' => Categoria::orderBy('nombre')->get(),
+            'timezones' => array_unique(array_merge($preferidas, $allTimezones)),
         ];
     }
 }; ?>
 
 <div class="max-w-6xl mx-auto space-y-10 pb-20">
+    {{-- 1. HEADER --}}
     <header>
         <h1 class="text-4xl font-black text-slate-900 tracking-tighter italic">Configuración</h1>
         <p class="text-slate-500 font-bold uppercase text-xs tracking-[0.2em] mt-1">Administra tus finanzas</p>
     </header>
 
-    {{-- Tabs --}}
+    {{-- 2. TABS (Lo que te faltaba) --}}
     <div class="flex p-1.5 bg-slate-200/50 rounded-[2.5rem] shadow-inner">
-        @foreach (['cuentas' => 'Cuentas', 'tarjetas' => 'Tarjetas', 'categorias' => 'Categorías'] as $key => $label)
+        @foreach (['cuentas' => 'Cuentas', 'tarjetas' => 'Tarjetas', 'categorias' => 'Categorías', 'perfil' => 'Perfil'] as $key => $label)
             <button wire:click="$set('tab', '{{ $key }}')"
-                class="flex-1 py-4 rounded-[2rem] font-black text-sm uppercase transition-all {{ $tab == $key ? 'bg-white shadow-xl text-indigo-600 scale-[1.02]' : 'text-slate-500' }}">{{ $label }}</button>
+                class="flex-1 py-4 rounded-[2rem] font-black text-sm uppercase transition-all {{ $tab == $key ? 'bg-white shadow-xl text-indigo-600 scale-[1.02]' : 'text-slate-500' }}">
+                {{ $label }}
+            </button>
         @endforeach
     </div>
 
+    {{-- 3. GRID PRINCIPAL --}}
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {{-- FORMULARIOS --}}
         <div class="lg:col-span-5 space-y-6">
             <div class="bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-100">
                 <h2 class="text-xl font-black italic mb-6 text-slate-800 flex items-center gap-2">
-                    <span class="w-2 h-6 bg-indigo-500 rounded-full"></span>
-                    {{ $editando_id ? 'Editar' : 'Nueva' }}
-                    {{ match ($tab) {'cuentas' => 'Cuenta','tarjetas' => 'Tarjeta','categorias' => 'Categoría'} }}
+                    <span class="w-2 h-6 {{ $tab == 'perfil' ? 'bg-amber-500' : 'bg-indigo-500' }} rounded-full"></span>
+                    {{ $editando_id ? 'Editar' : ($tab == 'perfil' ? 'Ajustes de' : 'Nueva') }}
+                    {{ match ($tab) {
+                        'cuentas' => 'Cuenta',
+                        'tarjetas' => 'Tarjeta',
+                        'categorias' => 'Categoría',
+                        'perfil' => 'Perfil',
+                    } }}
                 </h2>
 
                 @if (session('ok'))
                     <div
                         class="mb-4 p-4 bg-emerald-500 text-white rounded-2xl text-center font-black animate-bounce shadow-lg">
-                        {{ session('ok') }}</div>
+                        {{ session('ok') }}
+                    </div>
                 @endif
 
                 <form wire:submit.prevent="guardar" class="space-y-5">
-                    @if ($tab == 'categorias')
-                        {{-- Selector Emoji con Ayuda y Autolimpieza --}}
+                    @if ($tab == 'perfil')
+                        <div class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div
+                                class="bg-amber-50/50 p-6 rounded-[2.5rem] border border-amber-100 flex flex-col items-center gap-2">
+                                <span class="text-4xl">🌍</span>
+                                <p class="text-[10px] font-black text-amber-600 uppercase tracking-widest text-center">
+                                    Configura tu horario local</p>
+                            </div>
+                            <div class="space-y-2" wire:ignore> {{-- wire:ignore es CLAVE para que Livewire no borre el buscador --}}
+                                <label class="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Zona
+                                    Horaria</label>
+
+                                <div x-data="{
+                                    tsControl: null,
+                                    init() {
+                                        this.tsControl = new TomSelect($refs.selectTz, {
+                                            create: false,
+                                            sortField: { field: 'text', order: 'asc' },
+                                            placeholder: 'Busca tu ciudad...',
+                                            onChange: (value) => {
+                                                @this.set('timezone', value);
+                                                {{-- Sincroniza con Livewire --}}
+                                            }
+                                        });
+                                    }
+                                }">
+                                    <select x-ref="selectTz"
+                                        class="w-full mt-1 border-none bg-slate-50 rounded-2xl p-4 font-bold shadow-sm outline-none">
+                                        <option value="">Selecciona una zona...</option>
+                                        @foreach ($timezones as $tz)
+                                            <option value="{{ $tz }}"
+                                                {{ $timezone == $tz ? 'selected' : '' }}>{{ $tz }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit"
+                                class="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black text-lg shadow-xl hover:bg-amber-500 transition-all active:scale-95">
+                                ACTUALIZAR PREFERENCIAS
+                            </button>
+                        </div>
+                    @elseif ($tab == 'categorias')
+                        {{-- Selector Emoji --}}
                         <div class="bg-indigo-50/50 p-6 rounded-[2.5rem] border border-indigo-100 flex flex-col items-center gap-4"
                             x-data="{ icono: @entangle('icono_categoria') }">
                             <div class="flex items-center gap-5">
                                 <div class="w-20 h-20 bg-white rounded-full shadow-xl flex items-center justify-center text-5xl border-4 border-white"
                                     x-text="icono"></div>
-                                <input type="text" placeholder="😀"
-                                    class="w-20 bg-white border-2 border-indigo-100 rounded-2xl p-4 text-center text-2xl outline-none focus:ring-4 focus:ring-indigo-200 transition-all"
+                                <input type="text"
+                                    class="w-20 bg-white border-2 border-indigo-100 rounded-2xl p-4 text-center text-2xl outline-none"
                                     x-bind:value="icono" @focus="$el.value = ''"
-                                    @input="icono = $el.value; $wire.set('icono_categoria', $el.value)"
-                                    @change="$wire.set('icono_categoria', $el.value)">
-                            </div>
-                            <div class="text-center space-y-1">
-                                <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Atajos de
-                                    teclado:</p>
-                                <p class="text-[9px] font-bold text-slate-500 italic">
-                                    <span class="bg-white px-1.5 py-0.5 rounded border shadow-sm">Win + .</span> en PC
-                                    <span class="mx-1">/</span>
-                                    <span class="bg-white px-1.5 py-0.5 rounded border shadow-sm">Cmd + Ctrl +
-                                        Espacio</span> en Mac
-                                </p>
+                                    @input="icono = $el.value; $wire.set('icono_categoria', $el.value)">
                             </div>
                         </div>
                         <input type="text" wire:model="nombre_categoria" placeholder="NOMBRE CATEGORÍA"
                             class="w-full border-none bg-slate-50 rounded-2xl p-5 font-black text-center uppercase focus:ring-4 focus:ring-indigo-100">
+                        <button type="submit"
+                            class="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black text-lg shadow-xl hover:bg-indigo-600 transition-all">
+                            {{ $editando_id ? 'ACTUALIZAR' : 'GUARDAR' }}
+                        </button>
                     @else
-                        {{-- Campos Cuenta/Tarjeta --}}
                         <div class="flex gap-4">
                             <input type="text" wire:model="nombre" placeholder="NOMBRE"
                                 class="flex-1 border-none bg-slate-50 rounded-2xl p-4 font-bold shadow-sm">
                             <input type="color" wire:model="color"
                                 class="w-16 h-14 p-1 rounded-2xl border-none bg-slate-50 cursor-pointer shadow-sm">
                         </div>
-
                         <div
                             class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                             <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Estatus
@@ -230,113 +301,47 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                                     class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $activo ? 'translate-x-6' : 'translate-x-1' }}"></span>
                             </button>
                         </div>
-
                         @if ($tab == 'cuentas')
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Saldo
                                 Inicial</label>
                             <input type="number" step="0.01" wire:model="saldo_inicial"
                                 class="w-full bg-slate-50 border-none rounded-2xl p-4 font-black text-2xl text-emerald-600">
-
-                            <div
-                                class="flex items-center gap-4 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 border-dashed">
-                                <input type="checkbox" wire:model.live="mostrarRendimiento" id="chk"
-                                    class="w-6 h-6 rounded-lg text-indigo-600 border-none shadow-sm">
-                                <label for="chk" class="text-xs font-black text-indigo-900 cursor-pointer">¿GENERA
-                                    RENDIMIENTOS?</label>
-                            </div>
-
-                            @if ($mostrarRendimiento)
-                                <div
-                                    class="p-5 bg-indigo-600 rounded-[2rem] text-white space-y-3 animate-in zoom-in duration-300 shadow-xl">
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label class="text-[8px] font-black opacity-60 uppercase ml-1">Tasa %
-                                                Anual</label>
-                                            <input type="number" step="0.1" wire:model="tasa_rendimiento"
-                                                class="w-full bg-white/10 border-none rounded-xl p-3 font-black text-white outline-none">
-                                        </div>
-                                        <div>
-                                            <label class="text-[8px] font-black opacity-60 uppercase ml-1">Tope Rend.
-                                                $</label>
-                                            <input type="number" wire:model="tope_rendimiento"
-                                                class="w-full bg-white/10 border-none rounded-xl p-3 font-black text-white outline-none">
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label class="text-[8px] font-black opacity-60 uppercase ml-1">Tasa Excedente
-                                            %</label>
-                                        <input type="number" step="0.1" wire:model="tasa_excedente"
-                                            class="w-full bg-white/10 border-none rounded-xl p-3 font-black text-white outline-none">
-                                    </div>
-                                </div>
-                            @endif
                         @endif
-
                         @if ($tab == 'tarjetas')
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Límite
                                 de Crédito</label>
                             <input type="number" wire:model="limite_credito"
                                 class="w-full bg-slate-50 border-none rounded-2xl p-4 font-black text-2xl text-rose-500">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="text-[9px] font-black text-slate-400 uppercase ml-1">Día Corte</label>
-                                    <input type="number" wire:model="dia_corte"
-                                        class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold">
-                                </div>
-                                <div>
-                                    <label class="text-[9px] font-black text-slate-400 uppercase ml-1">Día Pago</label>
-                                    <input type="number" wire:model="dia_pago"
-                                        class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold">
-                                </div>
-                            </div>
                         @endif
-                    @endif
-
-                    <div class="flex gap-2">
                         <button type="submit"
-                            class="flex-1 bg-slate-900 text-white py-5 rounded-[2rem] font-black text-lg shadow-xl hover:bg-indigo-600 transition-all active:scale-95">
+                            class="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black text-lg shadow-xl hover:bg-indigo-600 transition-all">
                             {{ $editando_id ? 'ACTUALIZAR' : 'GUARDAR' }}
                         </button>
-                        @if ($editando_id && $tab == 'categorias')
-                            <button type="button" wire:confirm="¿Borrar categoría?"
-                                wire:click="eliminarCategoria({{ $editando_id }})"
-                                class="bg-rose-100 text-rose-600 px-6 rounded-[2rem] hover:bg-rose-600 hover:text-white transition-all">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
-                                    viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
-                        @endif
-                    </div>
+                    @endif
+
                     @if ($editando_id)
                         <button type="button" wire:click="limpiar"
                             class="w-full text-slate-400 font-bold text-xs uppercase tracking-widest">Cancelar</button>
                     @endif
                 </form>
             </div>
-
-            @if ($editando_id && $tab == 'cuentas')
-                <div class="bg-emerald-600 p-8 rounded-[3rem] text-white shadow-xl animate-in fade-in duration-500">
-                    <h3 class="font-black italic text-xl mb-4">Sincronizar Saldo Real</h3>
-                    <div class="flex gap-3">
-                        <input type="number" step="0.01" wire:model="nuevo_saldo_real"
-                            class="flex-1 bg-white/20 border-none rounded-2xl p-4 font-black text-white placeholder-white/40"
-                            placeholder="Saldo actual">
-                        <button wire:click="sincronizarSaldo({{ $editando_id }})"
-                            class="bg-white text-emerald-700 px-8 rounded-2xl font-black shadow-lg">OK</button>
-                    </div>
-                </div>
-            @endif
         </div>
 
         {{-- LISTADOS --}}
         <div class="lg:col-span-7 space-y-4">
-            @if ($tab == 'categorias')
+            @if ($tab == 'perfil')
+                <div
+                    class="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center space-y-4">
+                    <div class="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center text-5xl">🕒</div>
+                    <h3 class="font-black text-2xl text-slate-800">Zona Horaria Actual</h3>
+                    <span
+                        class="px-6 py-2 bg-slate-900 text-white rounded-full font-black text-sm">{{ $timezone }}</span>
+                </div>
+            @elseif ($tab == 'categorias')
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                     @foreach ($categorias as $cat)
                         <div wire:click="editarCategoria({{ $cat->id }})"
-                            class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center gap-2 hover:border-indigo-400 hover:shadow-xl transition-all group cursor-pointer">
+                            class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center gap-2 hover:border-indigo-400 cursor-pointer group transition-all">
                             <span
                                 class="text-4xl group-hover:scale-125 transition-transform">{{ $cat->icono ?? '🏷️' }}</span>
                             <span
@@ -347,26 +352,17 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
             @else
                 @foreach ($tab == 'cuentas' ? $cuentas : $tarjetas as $item)
                     <div wire:click="{{ $tab == 'cuentas' ? 'editarCuenta' : 'editarTarjeta' }}({{ $item->id }})"
-                        class="bg-white p-6 rounded-[2.5rem] border-l-[18px] flex justify-between items-center shadow-sm hover:shadow-2xl transition-all cursor-pointer group {{ !$item->activo ? 'opacity-50 grayscale' : '' }}"
+                        class="bg-white p-6 rounded-[2.5rem] border-l-[18px] flex justify-between items-center shadow-sm hover:shadow-2xl cursor-pointer transition-all"
                         style="border-color: {{ $item->color }}">
                         <div>
-                            <div class="flex items-center gap-2">
-                                <h4 class="font-black text-slate-800 text-xl tracking-tight">{{ $item->nombre }}</h4>
-                                @if (!$item->activo)
-                                    <span
-                                        class="bg-slate-200 text-slate-500 text-[8px] px-2 py-1 rounded-full font-black uppercase tracking-tighter italic">Inactivo</span>
-                                @endif
-                            </div>
+                            <h4 class="font-black text-slate-800 text-xl">{{ $item->nombre }}</h4>
                             <p class="text-[10px] font-black text-slate-400 uppercase italic">
-                                ${{ number_format($item->saldo_inicial ?? $item->limite_credito, 2) }} inicial/límite
-                            </p>
+                                ${{ number_format($item->saldo_inicial ?? $item->limite_credito, 2) }}</p>
                         </div>
-                        <div class="text-right">
-                            <p
-                                class="font-black text-2xl {{ $tab == 'cuentas' ? 'text-emerald-600' : 'text-rose-500' }} tracking-tighter italic">
-                                ${{ number_format($item->saldo_actual ?? $item->deuda_actual, 2) }}
-                            </p>
-                        </div>
+                        <p
+                            class="font-black text-2xl {{ $tab == 'cuentas' ? 'text-emerald-600' : 'text-rose-500' }} italic">
+                            ${{ number_format($item->saldo_actual ?? $item->deuda_actual, 2) }}
+                        </p>
                     </div>
                 @endforeach
             @endif

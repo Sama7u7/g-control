@@ -51,8 +51,9 @@ new class extends Component {
         </div>
         <div class="px-5 py-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3">
             <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-            <span
-                class="text-xs font-black text-slate-600 uppercase tracking-widest">{{ now()->translatedFormat('d F, Y') }}</span>
+            <span class="text-slate-500 font-bold uppercase text-xs tracking-widest">
+                Hoy es {{ now()->translatedFormat('d F, Y | h:i A') }}
+            </span>
         </div>
     </header>
 
