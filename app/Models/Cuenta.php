@@ -8,22 +8,22 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 class Cuenta extends Model
 {
     protected $fillable = [
-        'nombre', 
-        'tipo', 
-        'saldo_inicial', 
-        'color', 
-        'tasa_rendimiento', 
-        'tope_rendimiento', 
+        'nombre',
+        'tipo',
+        'saldo_inicial',
+        'color',
+        'tasa_rendimiento',
+        'tope_rendimiento',
         'tasa_excedente'
     ];
 
     /**
-     * Esto hace que los cálculos aparezcan automáticamente 
+     * Esto hace que los cálculos aparezcan automáticamente
      * al convertir el modelo a JSON o Array.
      */
     protected $appends = [
-        'saldo_actual', 
-        'rendimiento_mensual_estimado', 
+        'saldo_actual',
+        'rendimiento_mensual_estimado',
         'rendimiento_detallado'
     ];
 
@@ -38,7 +38,7 @@ class Cuenta extends Model
     {
         $ingresos = $this->movimientos()->where('tipo', 'ingreso')->sum('monto');
         $gastos = $this->movimientos()->where('tipo', 'gasto')->sum('monto');
-        
+
         // Descontamos lo que salió para pagar tarjetas de crédito
         $pagosRealizados = Abono::where('cuenta_id', $this->id)->sum('monto');
 
@@ -59,7 +59,7 @@ class Cuenta extends Model
 
         $saldo = $this->saldo_actual;
         $tope = $this->tope_rendimiento ?? 0;
-        
+
         $montoBase = ($tope > 0 && $saldo > $tope) ? $tope : $saldo;
         $montoExcedente = ($tope > 0 && $saldo > $tope) ? ($saldo - $tope) : 0;
 
