@@ -4,27 +4,33 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Movimiento extends Model
 {
     protected $fillable = [
-        'monto', 
-        'concepto', 
-        'tipo', 
-        'fecha', 
-        'cuenta_id', 
-        'categoria_id'
+        'monto',
+        'concepto',
+        'tipo',
+        'fecha',
+        'movible_id',    // ← corregido (antes tenía 'cuenta_id' que no existe)
+        'movible_type',  // ← corregido
+        'categoria_id',
     ];
 
-    // Para que Laravel trate la fecha como objeto Carbon (facilita filtros mensuales)
     protected $casts = [
         'fecha' => 'date',
-        'monto' => 'decimal:2'
+        'monto' => 'decimal:2',
     ];
 
-    public function cuenta(): BelongsTo
+    // ─── Relaciones ───────────────────────────────────────────────────────────
+
+    /**
+     * Relación polimórfica: puede pertenecer a Cuenta o TarjetaCredito.
+     */
+    public function movible(): MorphTo
     {
-        return $this->belongsTo(Cuenta::class);
+        return $this->morphTo();
     }
 
     public function categoria(): BelongsTo

@@ -16,6 +16,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Volt::route('/historial', 'lista-movimientos')->name('historial');
     Volt::route('/configuracion', 'gestion-cuentas')->name('configuracion');
     Volt::route('/resumen', 'resumen-mensual')->name('resumen');
+    Volt::route('/gastos-fijos', 'gastos-fijos')->name('gastos-fijos');
 
     // La ruta de perfil que Breeze sí debe mantener
     Route::view('/profile', 'profile')->name('profile');
