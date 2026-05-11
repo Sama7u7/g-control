@@ -6,7 +6,7 @@ new class extends Component {
     public function with()
     {
         return [
-            'movimientos' => Movimiento::with(['cuenta', 'categoria'])
+            'movimientos' => Movimiento::with(['movible', 'categoria'])
                 ->latest()
                 ->take(10)
                 ->get(),

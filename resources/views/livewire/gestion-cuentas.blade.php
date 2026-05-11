@@ -3,12 +3,15 @@
 use Livewire\Volt\Component;
 use App\Models\{Cuenta, TarjetaCredito, Categoria, Movimiento, GastoFijo};
 use Livewire\Attributes\{Title, Layout};
+use Livewire\WithFileUploads;
 
 new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extends Component {
+    use WithFileUploads;
     public $tab = 'cuentas',
         $editando_id = null;
 
     public $timezone;
+    public $archivo_gastos;
 
     // ── Campos Generales ─────────────────────────────────────────────────────
     public $nombre,
@@ -308,6 +311,45 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
             'proximos_siete' => GastoFijo::proximos(7)->count(),
         ];
     }
+    public function importarGastos(): void
+    {
+        // 1. Validamos que sí sea un archivo .csv
+        $this->validate([
+            'archivo_gastos' => 'required|mimes:csv,txt|max:5120',
+        ]);
+
+        // 2. Abrimos el archivo temporal que subió Livewire
+        $path = $this->archivo_gastos->getRealPath();
+        $archivo = fopen($path, 'r');
+
+        // 3. Saltamos la primera fila (la de los encabezados)
+        fgetcsv($archivo);
+
+        $contador = 0;
+
+        // 4. Leemos fila por fila y lo metemos a la base de datos
+        while (($fila = fgetcsv($archivo)) !== false) {
+            if (count($fila) >= 4) {
+                // Asegurarnos de que no sea una fila vacía
+                \App\Models\Movimiento::create([
+                    'concepto' => mb_strtoupper(trim($fila[0])),
+                    'monto' => (float) $fila[1],
+                    'fecha' => \Carbon\Carbon::parse($fila[2])->toDateString(),
+                    'tipo' => 'gasto',
+                    'movible_type' => \App\Models\Cuenta::class,
+                    'movible_id' => (int) $fila[3],
+                ]);
+                $contador++;
+            }
+        }
+
+        fclose($archivo);
+
+        // 5. Limpiamos la variable del archivo y mandamos mensaje de éxito
+        $this->reset('archivo_gastos');
+        session()->flash('ok', "¡Éxito! Se importaron {$contador} gastos desde el archivo.");
+        $this->limpiar();
+    }
 }; ?>
 
 <div class="max-w-5xl mx-auto space-y-10 pb-20">
@@ -400,6 +442,59 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                                 class="w-full bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.82rem] hover:opacity-90 transition-opacity">
                                 ACTUALIZAR PREFERENCIAS
                             </button>
+                        </div>
+                        {{-- Sección de Importación Masiva en Perfil --}}
+                        <div
+                            class="bg-surface p-6 rounded-sys-card border border-border flex flex-col items-center gap-3 mt-6">
+                            <div
+                                class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl border border-border">
+                                📊
+                            </div>
+                            <div class="text-center">
+                                <p class="font-display font-bold text-[0.65rem] tracking-[0.14em] uppercase text-ink">
+                                    Importación Masiva
+                                </p>
+                                <p class="font-body text-[0.75rem] text-hint mt-1 max-w-[250px]">
+                                    Descarga la plantilla oficial, llénala en Excel y súbela para registrar todo el
+                                    historial.
+                                </p>
+                            </div>
+
+                            <div class="w-full flex gap-2 mt-2">
+                                {{-- Botón para descargar --}}
+                                <a href="{{ route('descargar.plantilla') }}"
+                                    class="flex-1 text-center bg-white border border-border text-ink py-3 rounded-sys-pill font-display font-bold text-[0.65rem] uppercase tracking-[0.1em] hover:border-accent hover:text-accent transition-all">
+                                    1. Bajar CSV
+                                </a>
+
+                                {{-- Input mágico para subir --}}
+                                <label
+                                    class="flex-1 text-center bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.65rem] uppercase tracking-[0.1em] hover:opacity-90 transition-all cursor-pointer">
+                                    2. Subir CSV
+                                    <input type="file" wire:model="archivo_gastos" class="hidden" accept=".csv">
+                                </label>
+                            </div>
+
+                            {{-- Estado de carga visual mientras Livewire sube el archivo al servidor --}}
+                            <div wire:loading wire:target="archivo_gastos"
+                                class="text-[0.65rem] text-hint font-display tracking-[0.1em] uppercase animate-pulse mt-2">
+                                Cargando archivo...
+                            </div>
+
+                            {{-- Cuadro de confirmación que aparece mágicamente cuando el archivo está listo --}}
+                            @if ($archivo_gastos)
+                                <div
+                                    class="w-full mt-2 p-4 bg-amber-light border border-amber/20 rounded-sys-input text-center animate-in fade-in slide-in-from-top-2">
+                                    <p class="font-body text-[0.75rem] text-amber-dark mb-3">
+                                        Archivo detectado: <span
+                                            class="font-bold">{{ $archivo_gastos->getClientOriginalName() }}</span>
+                                    </p>
+                                    <button type="button" wire:click="importarGastos"
+                                        class="w-full bg-amber text-white py-3 rounded-sys-pill font-display font-bold text-[0.7rem] uppercase tracking-[0.1em] hover:opacity-90 transition-opacity">
+                                        Procesar Todos los Gastos
+                                    </button>
+                                </div>
+                            @endif
                         </div>
                     @elseif ($tab === 'categorias')
                         <div class="bg-surface p-6 rounded-sys-card border border-border flex flex-col items-center gap-4"
@@ -685,8 +780,14 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                                 <div class="w-3 h-10 rounded-sys-pill flex-shrink-0"
                                     style="background-color: {{ $cuenta->color }}"></div>
                                 <div>
-                                    <h4 class="font-display font-bold text-[1rem] tracking-[-0.01em] text-ink">
-                                        {{ $cuenta->nombre }}</h4>
+                                    <h4
+                                        class="font-display font-bold text-[1rem] tracking-[-0.01em] text-ink flex items-center gap-2">
+                                        {{ $cuenta->nombre }}
+                                        <span
+                                            class="font-body text-[0.65rem] font-normal text-hint bg-surface px-2 py-0.5 rounded border border-border">
+                                            ID: {{ $cuenta->id }}
+                                        </span>
+                                    </h4>
                                     <div class="flex items-center gap-2 mt-0.5 flex-wrap">
                                         <span
                                             class="font-body text-[0.72rem] text-hint px-2 py-0.5 bg-surface rounded-full border border-border uppercase">{{ $cuenta->entidad_financiera }}</span>

@@ -196,9 +196,10 @@ new class extends Component {
                 <div class="p-6 border-b border-border flex justify-between items-center">
                     <h3 class="font-display font-bold text-[1.25rem] tracking-[-0.02em] text-ink">Historial Reciente
                     </h3>
-                    <button
-                        class="font-display font-bold text-[0.65rem] tracking-[0.14em] uppercase text-accent hover:text-ink transition-colors">Ver
-                        todo</button>
+                    <a href="{{ route('historial') }}"
+                        class="font-display font-bold text-[0.65rem] tracking-[0.14em] uppercase text-accent hover:text-ink transition-colors">
+                        Ver todo
+                    </a>
                 </div>
                 <div class="p-6">
                     @livewire('lista-movimientos')
