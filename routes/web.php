@@ -31,8 +31,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $callback = function () {
             $file = fopen('php://output', 'w');
             fputs($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM para acentos en Excel
-            fputcsv($file, ['Concepto', 'Monto', 'Fecha (YYYY-MM-DD)', 'ID_Cuenta']); // Encabezados
-            fputcsv($file, ['EJ. DESPENSA', '1200.50', now()->format('Y-m-d'), '1']); // Ejemplo
+            fputcsv($file, ['Concepto', 'Monto', 'Fecha (YYYY-MM-DD)', 'ID_Cuenta', 'Categoria']); // Encabezados
+            fputcsv($file, ['EJ. DESPENSA', '1200.50', now()->format('Y-m-d'), '1', 'Comida']); // Ejemplo
             fclose($file);
         };
 

@@ -174,7 +174,6 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
 
         $c = Cuenta::find($id);
 
-        // Ajuste contra saldo_total (para capitalizar rendimientos)
         $diferencia = $this->nuevo_saldo_real - $c->saldo_total;
 
         if ($diferencia != 0) {
@@ -188,7 +187,6 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
             ]);
         }
 
-        // Reiniciamos el reloj para que el interés vuelva a arrancar desde hoy
         $c->update(['ultima_actualizacion' => now()->toDateString()]);
 
         session()->flash('ok', 'Saldo sincronizado y rendimientos capitalizados');
@@ -268,7 +266,6 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                 'notas' => $this->gf_notas ?: null,
                 'cobrable_id' => $cobrableType && $this->gf_cobrable_id ? $this->gf_cobrable_id : null,
                 'cobrable_type' => $cobrableType && $this->gf_cobrable_id ? $cobrableType : null,
-                // Lógica de próxima fecha ya corregida en el helper
                 'proxima_fecha' => GastoFijo::calcularProximaFecha($this->gf_frecuencia, $this->gf_dia_cobro),
             ];
             $this->editando_id ? GastoFijo::find($this->editando_id)->update($data) : GastoFijo::create($data);
@@ -313,24 +310,19 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
     }
     public function importarGastos(): void
     {
-        // 1. Validamos que sí sea un archivo .csv
         $this->validate([
             'archivo_gastos' => 'required|mimes:csv,txt|max:5120',
         ]);
 
-        // 2. Abrimos el archivo temporal que subió Livewire
         $path = $this->archivo_gastos->getRealPath();
         $archivo = fopen($path, 'r');
 
-        // 3. Saltamos la primera fila (la de los encabezados)
         fgetcsv($archivo);
 
         $contador = 0;
 
-        // 4. Leemos fila por fila y lo metemos a la base de datos
         while (($fila = fgetcsv($archivo)) !== false) {
             if (count($fila) >= 4) {
-                // Asegurarnos de que no sea una fila vacía
                 \App\Models\Movimiento::create([
                     'concepto' => mb_strtoupper(trim($fila[0])),
                     'monto' => (float) $fila[1],
@@ -345,7 +337,6 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
 
         fclose($archivo);
 
-        // 5. Limpiamos la variable del archivo y mandamos mensaje de éxito
         $this->reset('archivo_gastos');
         session()->flash('ok', "¡Éxito! Se importaron {$contador} gastos desde el archivo.");
         $this->limpiar();
@@ -406,9 +397,9 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                     </div>
                 @endif
 
-                <form wire:submit.prevent="guardar" class="space-y-5">
+                <form wire:submit.prevent="guardar">
                     @if ($tab === 'perfil')
-                        <div class="space-y-6">
+                        <div wire:key="form-perfil" class="space-y-6">
                             <div
                                 class="bg-surface p-6 rounded-sys-card border border-border flex flex-col items-center gap-2">
                                 <span class="text-3xl">🌍</span>
@@ -442,329 +433,339 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                                 class="w-full bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.82rem] hover:opacity-90 transition-opacity">
                                 ACTUALIZAR PREFERENCIAS
                             </button>
-                        </div>
-                        {{-- Sección de Importación Masiva en Perfil --}}
-                        <div
-                            class="bg-surface p-6 rounded-sys-card border border-border flex flex-col items-center gap-3 mt-6">
+
+                            {{-- Sección de Importación Masiva en Perfil --}}
                             <div
-                                class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl border border-border">
-                                📊
-                            </div>
-                            <div class="text-center">
-                                <p class="font-display font-bold text-[0.65rem] tracking-[0.14em] uppercase text-ink">
-                                    Importación Masiva
-                                </p>
-                                <p class="font-body text-[0.75rem] text-hint mt-1 max-w-[250px]">
-                                    Descarga la plantilla oficial, llénala en Excel y súbela para registrar todo el
-                                    historial.
-                                </p>
-                            </div>
-
-                            <div class="w-full flex gap-2 mt-2">
-                                {{-- Botón para descargar --}}
-                                <a href="{{ route('descargar.plantilla') }}"
-                                    class="flex-1 text-center bg-white border border-border text-ink py-3 rounded-sys-pill font-display font-bold text-[0.65rem] uppercase tracking-[0.1em] hover:border-accent hover:text-accent transition-all">
-                                    1. Bajar CSV
-                                </a>
-
-                                {{-- Input mágico para subir --}}
-                                <label
-                                    class="flex-1 text-center bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.65rem] uppercase tracking-[0.1em] hover:opacity-90 transition-all cursor-pointer">
-                                    2. Subir CSV
-                                    <input type="file" wire:model="archivo_gastos" class="hidden" accept=".csv">
-                                </label>
-                            </div>
-
-                            {{-- Estado de carga visual mientras Livewire sube el archivo al servidor --}}
-                            <div wire:loading wire:target="archivo_gastos"
-                                class="text-[0.65rem] text-hint font-display tracking-[0.1em] uppercase animate-pulse mt-2">
-                                Cargando archivo...
-                            </div>
-
-                            {{-- Cuadro de confirmación que aparece mágicamente cuando el archivo está listo --}}
-                            @if ($archivo_gastos)
+                                class="bg-surface p-6 rounded-sys-card border border-border flex flex-col items-center gap-3 mt-6">
                                 <div
-                                    class="w-full mt-2 p-4 bg-amber-light border border-amber/20 rounded-sys-input text-center animate-in fade-in slide-in-from-top-2">
-                                    <p class="font-body text-[0.75rem] text-amber-dark mb-3">
-                                        Archivo detectado: <span
-                                            class="font-bold">{{ $archivo_gastos->getClientOriginalName() }}</span>
-                                    </p>
-                                    <button type="button" wire:click="importarGastos"
-                                        class="w-full bg-amber text-white py-3 rounded-sys-pill font-display font-bold text-[0.7rem] uppercase tracking-[0.1em] hover:opacity-90 transition-opacity">
-                                        Procesar Todos los Gastos
-                                    </button>
+                                    class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl border border-border">
+                                    📊
                                 </div>
-                            @endif
-                        </div>
-                    @elseif ($tab === 'categorias')
-                        <div class="bg-surface p-6 rounded-sys-card border border-border flex flex-col items-center gap-4"
-                            x-data="{ icono: @entangle('icono_categoria') }">
-                            <div class="flex items-center gap-5">
-                                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-3xl border border-border"
-                                    x-text="icono"></div>
-                                <input type="text"
-                                    class="w-16 bg-white border border-border rounded-sys-input p-3 text-center text-xl outline-none focus:border-accent transition-all"
-                                    x-bind:value="icono" @focus="$el.value = ''"
-                                    @input="icono = $el.value; $wire.set('icono_categoria', $el.value)">
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-1">
-                            <label class="font-display font-bold text-[0.7rem] text-ink">Nombre de la Categoría</label>
-                            <input type="text" wire:model="nombre_categoria" placeholder="ej. Supermercado"
-                                class="w-full border border-border bg-white rounded-sys-input p-3 font-body text-[0.875rem] outline-none focus:border-accent focus:ring-4 focus:ring-accent-light transition-all">
-                            @error('nombre_categoria')
-                                <span class="text-rose text-[0.75rem]">{{ $message }}</span>
-                            @enderror
-                        </div>
-                        <button type="submit"
-                            class="w-full bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.82rem] hover:opacity-90 transition-opacity">
-                            {{ $editando_id ? 'ACTUALIZAR' : 'GUARDAR' }}
-                        </button>
-                    @elseif ($tab === 'gastos')
-                        <div class="flex flex-col gap-1">
-                            <label class="font-display font-bold text-[0.7rem] text-ink">Nombre</label>
-                            <input type="text" wire:model="gf_nombre" placeholder="ej. Netflix, Renta, Seguro"
-                                class="w-full border border-border bg-white rounded-sys-input p-3 font-body text-[0.875rem] outline-none focus:border-accent transition-all">
-                        </div>
-                        <div class="flex flex-col gap-1">
-                            <label class="font-display font-bold text-[0.7rem] text-ink">Monto</label>
-                            <input type="number" step="0.01" wire:model="gf_monto" placeholder="0.00"
-                                class="w-full border border-border bg-white rounded-sys-input p-3 font-body text-[0.875rem] outline-none focus:border-accent transition-all">
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <label class="font-display font-bold text-[0.7rem] text-ink">Frecuencia</label>
-                            <div class="grid grid-cols-4 gap-2">
-                                @foreach (['semanal' => 'Sem', 'quincenal' => 'Qna', 'mensual' => 'Mens', 'bimestral' => 'Bim', 'trimestral' => 'Trim', 'semestral' => '6m', 'anual' => 'Anual'] as $val => $etiqueta)
-                                    <button type="button" wire:click="$set('gf_frecuencia', '{{ $val }}')"
-                                        class="p-2 rounded-sys-input border-2 font-display font-bold text-[0.6rem] uppercase {{ $gf_frecuencia == $val ? 'border-accent bg-accent-light text-accent' : 'border-border bg-surface text-muted' }}">
-                                        {{ $etiqueta }}
-                                    </button>
-                                @endforeach
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-1">
-                            <label class="font-display font-bold text-[0.7rem] text-ink">Día de Cobro</label>
-                            <input type="number" wire:model="gf_dia_cobro" min="1" max="31"
-                                class="w-full border border-border bg-white rounded-sys-input p-3 font-body text-[0.875rem]">
-                        </div>
-                        <div
-                            class="flex items-center justify-between p-4 bg-surface rounded-sys-input border border-border">
-                            <span
-                                class="font-display font-bold text-[0.65rem] tracking-[0.14em] text-ink uppercase">Registro
-                                Automático</span>
-                            <button type="button" wire:click="$toggle('gf_registro_auto')"
-                                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {{ $gf_registro_auto ? 'bg-accent' : 'bg-hint' }}">
-                                <span
-                                    class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $gf_registro_auto ? 'translate-x-6' : 'translate-x-1' }}"></span>
-                            </button>
-                        </div>
-                        <button type="submit"
-                            class="w-full bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.82rem]">
-                            {{ $editando_id ? 'ACTUALIZAR GASTO' : 'GUARDAR GASTO' }}
-                        </button>
-                    @elseif ($tab === 'cuentas')
-                        <div class="flex gap-4">
-                            <div class="flex-1 flex flex-col gap-1">
-                                <label class="font-display font-bold text-[0.7rem] text-ink">Nombre</label>
-                                <input type="text" wire:model="nombre" placeholder="ej. Nu Débito"
-                                    class="w-full border border-border bg-white rounded-sys-input p-3 font-body text-[0.875rem] outline-none focus:border-accent transition-all">
-                                @error('nombre')
-                                    <span class="text-rose text-[0.75rem]">{{ $message }}</span>
-                                @enderror
-                            </div>
-                            <div class="flex flex-col gap-1">
-                                <label class="font-display font-bold text-[0.7rem] text-ink">Color</label>
-                                <input type="color" wire:model="color"
-                                    class="w-12 h-11 p-0.5 rounded-sys-input border border-border bg-white cursor-pointer">
-                            </div>
-                        </div>
-
-                        <div class="flex flex-col gap-2">
-                            <label class="font-display font-bold text-[0.7rem] text-ink">Tipo de Cuenta</label>
-                            <div class="grid grid-cols-3 gap-2">
-                                @foreach (['debito' => ['🏦', 'Débito'], 'ahorro' => ['💰', 'Ahorro'], 'efectivo' => ['💵', 'Efectivo']] as $val => [$emoji, $etiqueta])
-                                    <button type="button" wire:click="$set('tipo', '{{ $val }}')"
-                                        class="flex flex-col items-center gap-1 p-3 rounded-sys-input border-2 transition-all font-display font-bold text-[0.65rem] uppercase {{ $tipo == $val ? 'border-accent bg-accent-light text-accent' : 'border-border bg-surface text-muted hover:border-accent/40' }}">
-                                        <span class="text-xl">{{ $emoji }}</span>{{ $etiqueta }}
-                                    </button>
-                                @endforeach
-                            </div>
-                        </div>
-
-                        <div class="flex flex-col gap-2">
-                            <label class="font-display font-bold text-[0.7rem] text-ink">Entidad Financiera</label>
-                            <div class="grid grid-cols-4 gap-2">
-                                @foreach (['banco' => 'Banco', 'sofipo' => 'SOFIPO', 'fintech' => 'Fintech', 'cetes' => 'Cetes'] as $val => $etiqueta)
-                                    <button type="button"
-                                        wire:click="$set('entidad_financiera', '{{ $val }}')"
-                                        class="p-2 rounded-sys-input border-2 transition-all font-display font-bold text-[0.65rem] uppercase {{ $entidad_financiera == $val ? 'border-accent bg-accent-light text-accent' : 'border-border bg-surface text-muted' }}">
-                                        {{ $etiqueta }}
-                                    </button>
-                                @endforeach
-                            </div>
-                        </div>
-
-                        <div
-                            class="flex items-center justify-between p-4 bg-surface rounded-sys-input border border-border">
-                            <span
-                                class="font-display font-bold text-[0.65rem] tracking-[0.14em] text-ink uppercase">Estatus
-                                Activo</span>
-                            <button type="button" wire:click="$toggle('activo')"
-                                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {{ $activo ? 'bg-accent' : 'bg-hint' }}">
-                                <span
-                                    class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $activo ? 'translate-x-6' : 'translate-x-1' }}"></span>
-                            </button>
-                        </div>
-
-                        <div class="flex flex-col gap-1">
-                            <label class="font-display font-bold text-[0.7rem] text-ink">Saldo Inicial</label>
-                            <input type="number" step="0.01" wire:model="saldo_inicial" placeholder="0.00"
-                                class="w-full bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem] text-ink outline-none focus:border-accent transition-all">
-                        </div>
-
-                        @if ($editando_id)
-                            @php $cuenta = $cuentas->find($editando_id); @endphp
-                            <div class="p-4 bg-amber-light border border-amber/20 rounded-sys-input space-y-3">
-                                <div>
+                                <div class="text-center">
                                     <p
-                                        class="font-display font-bold text-[0.65rem] tracking-[0.14em] uppercase text-amber-dark">
-                                        Corrección de Saldo</p>
-                                    <p class="font-body text-[0.72rem] text-hint mt-0.5">Saldo real actual (con
-                                        rendimientos): <span
-                                            class="font-bold text-ink">${{ number_format($cuenta?->saldo_total ?? 0, 2) }}</span>
+                                        class="font-display font-bold text-[0.65rem] tracking-[0.14em] uppercase text-ink">
+                                        Importación Masiva
+                                    </p>
+                                    <p class="font-body text-[0.75rem] text-hint mt-1 max-w-[250px]">
+                                        Descarga la plantilla oficial, llénala en Excel y súbela para registrar todo el
+                                        historial.
                                     </p>
                                 </div>
-                                <div class="flex gap-2">
-                                    <input type="number" step="0.01" wire:model="nuevo_saldo_real"
-                                        placeholder="Saldo en tu banco hoy"
-                                        class="flex-1 bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem]">
-                                    <button type="button" wire:click="sincronizarSaldo({{ $editando_id }})"
-                                        class="px-4 py-2 bg-amber text-white rounded-sys-input font-display font-bold text-[0.7rem] uppercase">Ajustar</button>
-                                </div>
-                            </div>
-                        @endif
 
-                        <div
-                            class="flex items-center justify-between p-4 bg-surface rounded-sys-input border border-border">
-                            <div><span
-                                    class="font-display font-bold text-[0.65rem] tracking-[0.14em] text-ink uppercase">Genera
-                                    Rendimiento</span></div>
-                            <button type="button" wire:click="$toggle('mostrarRendimiento')"
-                                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {{ $mostrarRendimiento ? 'bg-accent' : 'bg-hint' }}">
-                                <span
-                                    class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $mostrarRendimiento ? 'translate-x-6' : 'translate-x-1' }}"></span>
-                            </button>
-                        </div>
+                                <div class="w-full flex gap-2 mt-2">
+                                    <a href="{{ route('descargar.plantilla') }}"
+                                        class="flex-1 text-center bg-white border border-border text-ink py-3 rounded-sys-pill font-display font-bold text-[0.65rem] uppercase tracking-[0.1em] hover:border-accent hover:text-accent transition-all">
+                                        1. Bajar CSV
+                                    </a>
 
-                        @if ($mostrarRendimiento)
-                            <div class="space-y-4 p-4 bg-surface rounded-sys-input border border-border">
-                                <div
-                                    class="flex items-center justify-between p-3 bg-white rounded-sys-input border border-border">
-                                    <div>
-                                        <span
-                                            class="font-display font-bold text-[0.65rem] tracking-[0.14em] text-ink uppercase">Retención
-                                            ISR</span>
-                                        <p class="font-body text-[0.65rem] text-hint mt-0.5">Aplica retención
-                                            automática (0.50% anual).</p>
-                                    </div>
-                                    <button type="button" wire:click="$toggle('aplica_isr')"
-                                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {{ $aplica_isr ? 'bg-accent' : 'bg-hint' }}">
-                                        <span
-                                            class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $aplica_isr ? 'translate-x-6' : 'translate-x-1' }}"></span>
-                                    </button>
+                                    <label
+                                        class="flex-1 text-center bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.65rem] uppercase tracking-[0.1em] hover:opacity-90 transition-all cursor-pointer">
+                                        2. Subir CSV
+                                        <input type="file" wire:model="archivo_gastos" class="hidden" accept=".csv">
+                                    </label>
                                 </div>
 
-                                <div class="flex flex-col gap-2">
-                                    <label class="font-display font-bold text-[0.7rem] text-ink">Tipo de
-                                        Interés</label>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        @foreach (['simple' => 'Simple', 'escalonado' => 'Escalonado'] as $val => $etiqueta)
-                                            <button type="button"
-                                                wire:click="$set('tipo_interes', '{{ $val }}')"
-                                                class="p-2 rounded-sys-input border-2 font-display font-bold text-[0.65rem] uppercase {{ $tipo_interes == $val ? 'border-accent bg-accent-light text-accent' : 'border-border bg-white text-muted' }}">
-                                                {{ $etiqueta }}
-                                            </button>
-                                        @endforeach
-                                    </div>
+                                <div wire:loading wire:target="archivo_gastos"
+                                    class="text-[0.65rem] text-hint font-display tracking-[0.1em] uppercase animate-pulse mt-2">
+                                    Cargando archivo...
                                 </div>
 
-                                <div class="flex flex-col gap-1">
-                                    <label class="font-display font-bold text-[0.7rem] text-ink">Tasa Anual (%)</label>
-                                    <input type="number" step="0.01" wire:model="tasa_rendimiento"
-                                        class="w-full bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem]">
-                                </div>
-
-                                @if ($tipo_interes === 'escalonado')
-                                    <div class="flex flex-col gap-1">
-                                        <label class="font-display font-bold text-[0.7rem] text-ink">Tope de
-                                            Rendimiento ($)</label>
-                                        <input type="number" step="0.01" wire:model="tope_rendimiento"
-                                            class="w-full bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem]">
-                                    </div>
-                                    <div class="flex flex-col gap-1">
-                                        <label class="font-display font-bold text-[0.7rem] text-ink">Tasa Excedente
-                                            (%)</label>
-                                        <input type="number" step="0.01" wire:model="tasa_excedente"
-                                            class="w-full bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem]">
+                                @if ($archivo_gastos)
+                                    <div
+                                        class="w-full mt-2 p-4 bg-amber-light border border-amber/20 rounded-sys-input text-center animate-in fade-in slide-in-from-top-2">
+                                        <p class="font-body text-[0.75rem] text-amber-dark mb-3">
+                                            Archivo detectado: <span
+                                                class="font-bold">{{ $archivo_gastos->getClientOriginalName() }}</span>
+                                        </p>
+                                        <button type="button" wire:click="importarGastos"
+                                            class="w-full bg-amber text-white py-3 rounded-sys-pill font-display font-bold text-[0.7rem] uppercase tracking-[0.1em] hover:opacity-90 transition-opacity">
+                                            Procesar Todos los Gastos
+                                        </button>
                                     </div>
                                 @endif
-
-                                <div class="flex flex-col gap-1">
-                                    <label class="font-display font-bold text-[0.7rem] text-ink">Última
-                                        Actualización</label>
-                                    <input type="date" wire:model="ultima_actualizacion"
-                                        class="w-full bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem]">
+                            </div>
+                        </div>
+                    @elseif ($tab === 'categorias')
+                        <div wire:key="form-categorias" class="space-y-5">
+                            <div class="bg-surface p-6 rounded-sys-card border border-border flex flex-col items-center gap-4"
+                                x-data="{ icono: @entangle('icono_categoria') }">
+                                <div class="flex items-center gap-5">
+                                    <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-3xl border border-border"
+                                        x-text="icono"></div>
+                                    <input type="text"
+                                        class="w-16 bg-white border border-border rounded-sys-input p-3 text-center text-xl outline-none focus:border-accent transition-all"
+                                        x-bind:value="icono" @focus="$el.value = ''"
+                                        @input="icono = $el.value; $wire.set('icono_categoria', $el.value)">
                                 </div>
                             </div>
-                        @endif
-
-                        <button type="submit"
-                            class="w-full bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.82rem] hover:opacity-90 transition-opacity">
-                            {{ $editando_id ? 'ACTUALIZAR CUENTA' : 'GUARDAR CUENTA' }}
-                        </button>
-                    @else
-                        <div class="flex gap-4">
-                            <div class="flex-1 flex flex-col gap-1">
-                                <label class="font-display font-bold text-[0.7rem] text-ink">Nombre</label>
-                                <input type="text" wire:model="nombre" placeholder="ej. Nu Crédito"
-                                    class="w-full border border-border bg-white rounded-sys-input p-3 font-body text-[0.875rem] outline-none focus:border-accent transition-all">
-                                @error('nombre')
+                            <div class="flex flex-col gap-1">
+                                <label class="font-display font-bold text-[0.7rem] text-ink">Nombre de la
+                                    Categoría</label>
+                                <input type="text" wire:model="nombre_categoria" placeholder="ej. Supermercado"
+                                    class="w-full border border-border bg-white rounded-sys-input p-3 font-body text-[0.875rem] outline-none focus:border-accent focus:ring-4 focus:ring-accent-light transition-all">
+                                @error('nombre_categoria')
                                     <span class="text-rose text-[0.75rem]">{{ $message }}</span>
                                 @enderror
                             </div>
-                            <div class="flex flex-col gap-1">
-                                <label class="font-display font-bold text-[0.7rem] text-ink">Color</label>
-                                <input type="color" wire:model="color"
-                                    class="w-12 h-11 p-0.5 rounded-sys-input border border-border bg-white cursor-pointer">
-                            </div>
+                            <button type="submit"
+                                class="w-full bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.82rem] hover:opacity-90 transition-opacity">
+                                {{ $editando_id ? 'ACTUALIZAR' : 'GUARDAR' }}
+                            </button>
                         </div>
-                        <div class="flex flex-col gap-1">
-                            <label class="font-display font-bold text-[0.7rem] text-ink">Límite de Crédito</label>
-                            <input type="number" step="0.01" wire:model="limite_credito"
-                                class="w-full bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem]">
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
+                    @elseif ($tab === 'gastos')
+                        <div wire:key="form-gastos" class="space-y-5">
                             <div class="flex flex-col gap-1">
-                                <label class="font-display font-bold text-[0.7rem] text-ink">Día de Corte</label>
-                                <input type="number" wire:model="dia_corte"
-                                    class="w-full bg-white border border-border rounded-sys-input p-3">
+                                <label class="font-display font-bold text-[0.7rem] text-ink">Nombre</label>
+                                <input type="text" wire:model="gf_nombre" placeholder="ej. Netflix, Renta, Seguro"
+                                    class="w-full border border-border bg-white rounded-sys-input p-3 font-body text-[0.875rem] outline-none focus:border-accent transition-all">
                             </div>
                             <div class="flex flex-col gap-1">
-                                <label class="font-display font-bold text-[0.7rem] text-ink">Día de Pago</label>
-                                <input type="number" wire:model="dia_pago"
-                                    class="w-full bg-white border border-border rounded-sys-input p-3">
+                                <label class="font-display font-bold text-[0.7rem] text-ink">Monto</label>
+                                <input type="number" step="0.01" wire:model="gf_monto" placeholder="0.00"
+                                    class="w-full border border-border bg-white rounded-sys-input p-3 font-body text-[0.875rem] outline-none focus:border-accent transition-all">
                             </div>
+                            <div class="flex flex-col gap-2">
+                                <label class="font-display font-bold text-[0.7rem] text-ink">Frecuencia</label>
+                                <div class="grid grid-cols-4 gap-2">
+                                    @foreach (['semanal' => 'Sem', 'quincenal' => 'Qna', 'mensual' => 'Mens', 'bimestral' => 'Bim', 'trimestral' => 'Trim', 'semestral' => '6m', 'anual' => 'Anual'] as $val => $etiqueta)
+                                        <button type="button"
+                                            wire:click="$set('gf_frecuencia', '{{ $val }}')"
+                                            class="p-2 rounded-sys-input border-2 font-display font-bold text-[0.6rem] uppercase {{ $gf_frecuencia == $val ? 'border-accent bg-accent-light text-accent' : 'border-border bg-surface text-muted' }}">
+                                            {{ $etiqueta }}
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="font-display font-bold text-[0.7rem] text-ink">Día de Cobro</label>
+                                <input type="number" wire:model="gf_dia_cobro" min="1" max="31"
+                                    class="w-full border border-border bg-white rounded-sys-input p-3 font-body text-[0.875rem]">
+                            </div>
+                            <div
+                                class="flex items-center justify-between p-4 bg-surface rounded-sys-input border border-border">
+                                <span
+                                    class="font-display font-bold text-[0.65rem] tracking-[0.14em] text-ink uppercase">Registro
+                                    Automático</span>
+                                <button type="button" wire:click="$toggle('gf_registro_auto')"
+                                    class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {{ $gf_registro_auto ? 'bg-accent' : 'bg-hint' }}">
+                                    <span
+                                        class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $gf_registro_auto ? 'translate-x-6' : 'translate-x-1' }}"></span>
+                                </button>
+                            </div>
+                            <button type="submit"
+                                class="w-full bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.82rem]">
+                                {{ $editando_id ? 'ACTUALIZAR GASTO' : 'GUARDAR GASTO' }}
+                            </button>
                         </div>
-                        <button type="submit"
-                            class="w-full bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.82rem]">
-                            {{ $editando_id ? 'ACTUALIZAR TARJETA' : 'GUARDAR TARJETA' }}
-                        </button>
+                    @elseif ($tab === 'cuentas')
+                        <div wire:key="form-cuentas" class="space-y-5">
+                            <div class="flex gap-4">
+                                <div class="flex-1 flex flex-col gap-1">
+                                    <label class="font-display font-bold text-[0.7rem] text-ink">Nombre</label>
+                                    <input type="text" wire:model="nombre" placeholder="ej. Nu Débito"
+                                        class="w-full border border-border bg-white rounded-sys-input p-3 font-body text-[0.875rem] outline-none focus:border-accent transition-all">
+                                    @error('nombre')
+                                        <span class="text-rose text-[0.75rem]">{{ $message }}</span>
+                                    @enderror
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-display font-bold text-[0.7rem] text-ink">Color</label>
+                                    <input type="color" wire:model="color"
+                                        class="w-12 h-11 p-0.5 rounded-sys-input border border-border bg-white cursor-pointer">
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <label class="font-display font-bold text-[0.7rem] text-ink">Tipo de Cuenta</label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    @foreach (['debito' => ['🏦', 'Débito'], 'ahorro' => ['💰', 'Ahorro'], 'efectivo' => ['💵', 'Efectivo']] as $val => [$emoji, $etiqueta])
+                                        <button type="button" wire:click="$set('tipo', '{{ $val }}')"
+                                            class="flex flex-col items-center gap-1 p-3 rounded-sys-input border-2 transition-all font-display font-bold text-[0.65rem] uppercase {{ $tipo == $val ? 'border-accent bg-accent-light text-accent' : 'border-border bg-surface text-muted hover:border-accent/40' }}">
+                                            <span class="text-xl">{{ $emoji }}</span>{{ $etiqueta }}
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <label class="font-display font-bold text-[0.7rem] text-ink">Entidad Financiera</label>
+                                <div class="grid grid-cols-4 gap-2">
+                                    @foreach (['banco' => 'Banco', 'sofipo' => 'SOFIPO', 'fintech' => 'Fintech', 'cetes' => 'Cetes'] as $val => $etiqueta)
+                                        <button type="button"
+                                            wire:click="$set('entidad_financiera', '{{ $val }}')"
+                                            class="p-2 rounded-sys-input border-2 transition-all font-display font-bold text-[0.65rem] uppercase {{ $entidad_financiera == $val ? 'border-accent bg-accent-light text-accent' : 'border-border bg-surface text-muted' }}">
+                                            {{ $etiqueta }}
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div
+                                class="flex items-center justify-between p-4 bg-surface rounded-sys-input border border-border">
+                                <span
+                                    class="font-display font-bold text-[0.65rem] tracking-[0.14em] text-ink uppercase">Estatus
+                                    Activo</span>
+                                <button type="button" wire:click="$toggle('activo')"
+                                    class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {{ $activo ? 'bg-accent' : 'bg-hint' }}">
+                                    <span
+                                        class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $activo ? 'translate-x-6' : 'translate-x-1' }}"></span>
+                                </button>
+                            </div>
+
+                            <div class="flex flex-col gap-1">
+                                <label class="font-display font-bold text-[0.7rem] text-ink">Saldo Inicial</label>
+                                <input type="number" step="0.01" wire:model="saldo_inicial" placeholder="0.00"
+                                    class="w-full bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem] text-ink outline-none focus:border-accent transition-all">
+                            </div>
+
+                            @if ($editando_id)
+                                @php $cuenta = $cuentas->find($editando_id); @endphp
+                                <div class="p-4 bg-amber-light border border-amber/20 rounded-sys-input space-y-3">
+                                    <div>
+                                        <p
+                                            class="font-display font-bold text-[0.65rem] tracking-[0.14em] uppercase text-amber-dark">
+                                            Corrección de Saldo</p>
+                                        <p class="font-body text-[0.72rem] text-hint mt-0.5">Saldo real actual (con
+                                            rendimientos): <span
+                                                class="font-bold text-ink">${{ number_format($cuenta?->saldo_total ?? 0, 2) }}</span>
+                                        </p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <input type="number" step="0.01" wire:model="nuevo_saldo_real"
+                                            placeholder="Saldo en tu banco hoy"
+                                            class="flex-1 bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem]">
+                                        <button type="button" wire:click="sincronizarSaldo({{ $editando_id }})"
+                                            class="px-4 py-2 bg-amber text-white rounded-sys-input font-display font-bold text-[0.7rem] uppercase">Ajustar</button>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <div
+                                class="flex items-center justify-between p-4 bg-surface rounded-sys-input border border-border">
+                                <div><span
+                                        class="font-display font-bold text-[0.65rem] tracking-[0.14em] text-ink uppercase">Genera
+                                        Rendimiento</span></div>
+                                <button type="button" wire:click="$toggle('mostrarRendimiento')"
+                                    class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {{ $mostrarRendimiento ? 'bg-accent' : 'bg-hint' }}">
+                                    <span
+                                        class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $mostrarRendimiento ? 'translate-x-6' : 'translate-x-1' }}"></span>
+                                </button>
+                            </div>
+
+                            @if ($mostrarRendimiento)
+                                <div class="space-y-4 p-4 bg-surface rounded-sys-input border border-border">
+                                    <div
+                                        class="flex items-center justify-between p-3 bg-white rounded-sys-input border border-border">
+                                        <div>
+                                            <span
+                                                class="font-display font-bold text-[0.65rem] tracking-[0.14em] text-ink uppercase">Retención
+                                                ISR</span>
+                                            <p class="font-body text-[0.65rem] text-hint mt-0.5">Aplica retención
+                                                automática (0.50% anual).</p>
+                                        </div>
+                                        <button type="button" wire:click="$toggle('aplica_isr')"
+                                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {{ $aplica_isr ? 'bg-accent' : 'bg-hint' }}">
+                                            <span
+                                                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $aplica_isr ? 'translate-x-6' : 'translate-x-1' }}"></span>
+                                        </button>
+                                    </div>
+
+                                    <div class="flex flex-col gap-2">
+                                        <label class="font-display font-bold text-[0.7rem] text-ink">Tipo de
+                                            Interés</label>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            @foreach (['simple' => 'Simple', 'escalonado' => 'Escalonado'] as $val => $etiqueta)
+                                                <button type="button"
+                                                    wire:click="$set('tipo_interes', '{{ $val }}')"
+                                                    class="p-2 rounded-sys-input border-2 font-display font-bold text-[0.65rem] uppercase {{ $tipo_interes == $val ? 'border-accent bg-accent-light text-accent' : 'border-border bg-white text-muted' }}">
+                                                    {{ $etiqueta }}
+                                                </button>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-col gap-1">
+                                        <label class="font-display font-bold text-[0.7rem] text-ink">Tasa Anual
+                                            (%)</label>
+                                        <input type="number" step="0.01" wire:model="tasa_rendimiento"
+                                            class="w-full bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem]">
+                                    </div>
+
+                                    @if ($tipo_interes === 'escalonado')
+                                        <div class="flex flex-col gap-1">
+                                            <label class="font-display font-bold text-[0.7rem] text-ink">Tope de
+                                                Rendimiento ($)</label>
+                                            <input type="number" step="0.01" wire:model="tope_rendimiento"
+                                                class="w-full bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem]">
+                                        </div>
+                                        <div class="flex flex-col gap-1">
+                                            <label class="font-display font-bold text-[0.7rem] text-ink">Tasa Excedente
+                                                (%)</label>
+                                            <input type="number" step="0.01" wire:model="tasa_excedente"
+                                                class="w-full bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem]">
+                                        </div>
+                                    @endif
+
+                                    <div class="flex flex-col gap-1">
+                                        <label class="font-display font-bold text-[0.7rem] text-ink">Última
+                                            Actualización</label>
+                                        <input type="date" wire:model="ultima_actualizacion"
+                                            class="w-full bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem]">
+                                    </div>
+                                </div>
+                            @endif
+
+                            <button type="submit"
+                                class="w-full bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.82rem] hover:opacity-90 transition-opacity">
+                                {{ $editando_id ? 'ACTUALIZAR CUENTA' : 'GUARDAR CUENTA' }}
+                            </button>
+                        </div>
+                    @else
+                        <div wire:key="form-tarjetas" class="space-y-5">
+                            <div class="flex gap-4">
+                                <div class="flex-1 flex flex-col gap-1">
+                                    <label class="font-display font-bold text-[0.7rem] text-ink">Nombre</label>
+                                    <input type="text" wire:model="nombre" placeholder="ej. Nu Crédito"
+                                        class="w-full border border-border bg-white rounded-sys-input p-3 font-body text-[0.875rem] outline-none focus:border-accent transition-all">
+                                    @error('nombre')
+                                        <span class="text-rose text-[0.75rem]">{{ $message }}</span>
+                                    @enderror
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-display font-bold text-[0.7rem] text-ink">Color</label>
+                                    <input type="color" wire:model="color"
+                                        class="w-12 h-11 p-0.5 rounded-sys-input border border-border bg-white cursor-pointer">
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="font-display font-bold text-[0.7rem] text-ink">Límite de Crédito</label>
+                                <input type="number" step="0.01" wire:model="limite_credito"
+                                    class="w-full bg-white border border-border rounded-sys-input p-3 font-body text-[0.875rem]">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-display font-bold text-[0.7rem] text-ink">Día de Corte</label>
+                                    <input type="number" wire:model="dia_corte"
+                                        class="w-full bg-white border border-border rounded-sys-input p-3">
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-display font-bold text-[0.7rem] text-ink">Día de Pago</label>
+                                    <input type="number" wire:model="dia_pago"
+                                        class="w-full bg-white border border-border rounded-sys-input p-3">
+                                </div>
+                            </div>
+                            <button type="submit"
+                                class="w-full bg-accent text-white py-3 rounded-sys-pill font-display font-bold text-[0.82rem]">
+                                {{ $editando_id ? 'ACTUALIZAR TARJETA' : 'GUARDAR TARJETA' }}
+                            </button>
+                        </div>
                     @endif
 
                     @if ($editando_id)
                         <button type="button" wire:click="limpiar"
-                            class="w-full text-muted hover:text-ink font-display font-bold text-[0.65rem] uppercase mt-2">Cancelar
-                            Edición</button>
+                            class="w-full text-muted hover:text-ink font-display font-bold text-[0.65rem] uppercase mt-2">
+                            Cancelar Edición
+                        </button>
                     @endif
                 </form>
             </div>
@@ -784,9 +785,8 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                                         class="font-display font-bold text-[1rem] tracking-[-0.01em] text-ink flex items-center gap-2">
                                         {{ $cuenta->nombre }}
                                         <span
-                                            class="font-body text-[0.65rem] font-normal text-hint bg-surface px-2 py-0.5 rounded border border-border">
-                                            ID: {{ $cuenta->id }}
-                                        </span>
+                                            class="font-body text-[0.65rem] font-normal text-hint bg-surface px-2 py-0.5 rounded border border-border">ID:
+                                            {{ $cuenta->id }}</span>
                                     </h4>
                                     <div class="flex items-center gap-2 mt-0.5 flex-wrap">
                                         <span
@@ -862,7 +862,11 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                                     style="background-color: {{ $tarjeta->color }}"></div>
                                 <div>
                                     <h4 class="font-display font-bold text-[1rem] text-ink">{{ $tarjeta->nombre }}
+                                        <span
+                                            class="font-body text-[0.65rem] font-normal text-hint bg-surface px-2 py-0.5 rounded border border-border">ID:
+                                            {{ $tarjeta->id }}</span>
                                     </h4>
+
                                 </div>
                             </div>
                             <div class="text-right">
