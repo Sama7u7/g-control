@@ -16,7 +16,8 @@ new class extends Component {
         $cuentas_lista = Cuenta::all();
         $tarjetas_lista = TarjetaCredito::all();
 
-        $activos = $cuentas_lista->sum->saldo_actual;
+        // Usamos saldo_total para que el resumen incluya rendimientos diarios
+        $activos = $cuentas_lista->sum('saldo_total');
         $pasivos = $tarjetas_lista->sum->deuda_actual;
         $patrimonioNeto = $activos - $pasivos;
 
@@ -98,13 +99,13 @@ new class extends Component {
                         </div>
                         <div class="text-right">
                             <p class="font-display font-extrabold text-[1.25rem] tracking-[-0.04em] text-green">
-                                ${{ number_format($c->saldo_actual, 2) }}
+                                ${{ number_format($c->saldo_total, 2) }}
                             </p>
                             @if ($c->tasa_rendimiento > 0)
                                 <div class="mt-1">
                                     <span
                                         class="inline-block font-display font-bold text-[0.6rem] tracking-[0.1em] uppercase px-2 py-[0.2rem] rounded-sys-pill bg-green-light text-green">
-                                        +${{ number_format($c->rendimiento_mensual_estimado, 2) }}
+                                        +${{ number_format($c->rendimiento_mensual_estimado, 2) }}/mes neto
                                     </span>
                                 </div>
                             @endif
@@ -135,8 +136,7 @@ new class extends Component {
                             </div>
                             <div class="text-right">
                                 <p class="font-display font-extrabold text-[1.25rem] tracking-[-0.04em] text-rose">
-                                    -${{ number_format($t->deuda_actual, 2) }}
-                                </p>
+                                    -${{ number_format($t->deuda_actual, 2) }}</p>
                                 <div class="mt-1">
                                     <span
                                         class="inline-block font-display font-bold text-[0.6rem] tracking-[0.1em] uppercase px-2 py-[0.2rem] rounded-sys-pill bg-surface text-muted">
@@ -146,7 +146,6 @@ new class extends Component {
                             </div>
                         </div>
 
-                        {{-- Barra de Progreso --}}
                         @php $porcentaje = ($t->limite_credito > 0) ? ($t->deuda_actual / $t->limite_credito) * 100 : 0; @endphp
                         <div class="space-y-1.5">
                             <div class="flex justify-between font-body text-[0.7rem] text-hint px-1">
@@ -212,7 +211,6 @@ new class extends Component {
         </div>
     </div>
 
-    {{-- Script de Chart.js --}}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('livewire:navigated', () => {
