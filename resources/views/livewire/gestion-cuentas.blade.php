@@ -170,27 +170,29 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
 
     public function sincronizarSaldo($id): void
     {
-        $this->validate(['nuevo_saldo_real' => 'required|numeric']);
+    $this->validate(['nuevo_saldo_real' => 'required|numeric']);
 
-        $c = Cuenta::find($id);
+    $c = Cuenta::find($id);
 
-        $diferencia = $this->nuevo_saldo_real - $c->saldo_total;
+    // Cambiamos saldo_total por saldo_actual
+    $diferencia = $this->nuevo_saldo_real - $c->saldo_actual;
 
-        if ($diferencia != 0) {
-            Movimiento::create([
-                'monto' => abs($diferencia),
-                'concepto' => 'AJUSTE / CAPITALIZACIÓN',
-                'tipo' => $diferencia > 0 ? 'ingreso' : 'gasto',
-                'fecha' => now()->toDateString(),
-                'movible_id' => $c->id,
-                'movible_type' => Cuenta::class,
-            ]);
-        }
+    if ($diferencia != 0) {
+        Movimiento::create([
+            'monto' => abs($diferencia),
+            'concepto' => 'AJUSTE / CAPITALIZACIÓN',
+            'tipo' => $diferencia > 0 ? 'ingreso' : 'gasto',
+            'fecha' => now()->toDateString(),
+            'movible_id' => $c->id,
+            'movible_type' => Cuenta::class,
+        ]);
+    }
 
-        $c->update(['ultima_actualizacion' => now()->toDateString()]);
+    // El reloj se reinicia, pero ahora el dinero ya está consolidado en el historial
+    $c->update(['ultima_actualizacion' => now()->toDateString()]);
 
-        session()->flash('ok', 'Saldo sincronizado y rendimientos capitalizados');
-        $this->limpiar();
+    session()->flash('ok', 'Saldo sincronizado y rendimientos capitalizados');
+    $this->limpiar();
     }
 
     public function guardar(): void

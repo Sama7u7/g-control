@@ -6,6 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Mi Varo | Control Financiero</title>
 
+    <meta name="theme-color" content="#4F3FF0">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mi Varo">
+    <link rel="apple-touch-icon" href="{{ asset('money-management.png') }}">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
         href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap"
@@ -831,11 +838,19 @@
     {{-- Footer --}}
     <footer>
         <div class="footer-logo">Mi <span>Varo.</span></div>
-        <p>v1.0 — Un proyecto de Alberto Samayoa Ramos</p>
         <p style="font-size: 0.7rem">
-            Laravel v{{ Illuminate\Foundation\Application::VERSION }} (PHP v{{ PHP_VERSION }})
+            Made with ❤️ by Alberto Samayoa Ramos.
         </p>
     </footer>
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('PWA registrada exitosamente', reg))
+                .catch(err => console.log('Error al registrar PWA', err));
+        });
+    }
+</script>
 
 </body>
 
