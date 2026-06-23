@@ -1,0 +1,17 @@
+{
+    "name": "Mi Varo - Control Financiero",
+    "short_name": "Mi Varo",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f8fafc",
+    "theme_color": "#4F3FF0",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/money-management.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

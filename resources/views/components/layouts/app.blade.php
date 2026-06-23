@@ -4,7 +4,14 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $title ?? 'Mi Varo' }}</title>
+    <title>{{ config('app.name', 'Mi Varo') }}</title>
+
+    <meta name="theme-color" content="#4F3FF0">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mi Varo">
+    <link rel="apple-touch-icon" href="{{ asset('money-management.png') }}">
 
     <!-- Tipografías Oficiales: Syne (Display) y DM Sans (Body) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -113,6 +120,15 @@
             </button>
         </form>
     </nav>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('PWA registrada exitosamente', reg))
+                    .catch(err => console.log('Error al registrar PWA', err));
+            });
+        }
+    </script>
 </body>
 
 </html>

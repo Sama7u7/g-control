@@ -8,6 +8,13 @@
 
     <title>{{ config('app.name', 'Mi Varo') }}</title>
 
+    <meta name="theme-color" content="#4F3FF0">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mi Varo">
+    <link rel="apple-touch-icon" href="{{ asset('money-management.png') }}">
+
     <!-- Tipografías del Design System -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400&display=swap"
@@ -68,6 +75,15 @@
             {{ $slot }}
         </div>
     </div>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('PWA registrada exitosamente', reg))
+                    .catch(err => console.log('Error al registrar PWA', err));
+            });
+        }
+    </script>
 </body>
 
 </html>
