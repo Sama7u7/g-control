@@ -13,6 +13,7 @@ class Abono extends Model
         'cuenta_id',   // De donde sale el dinero (cuenta débito)
         'tarjeta_id',  // A donde va el pago (tarjeta crédito)
         'notas',
+        'user_id',
     ];
 
     protected $casts = [
@@ -30,5 +31,9 @@ class Abono extends Model
     public function tarjeta(): BelongsTo
     {
         return $this->belongsTo(TarjetaCredito::class, 'tarjeta_id');
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

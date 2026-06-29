@@ -21,6 +21,7 @@ class Cuenta extends Model
         'tope_rendimiento',
         'tasa_excedente',
         'tipo_interes',
+        'user_id',
     ];
 
     protected $casts = [
@@ -46,6 +47,11 @@ class Cuenta extends Model
     public function movimientos(): MorphMany
     {
         return $this->morphMany(Movimiento::class, 'movible');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 
     // ─── Accessors ────────────────────────────────────────────────────────────

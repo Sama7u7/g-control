@@ -16,6 +16,7 @@ class Movimiento extends Model
         'movible_id',    // ← corregido (antes tenía 'cuenta_id' que no existe)
         'movible_type',  // ← corregido
         'categoria_id',
+        'user_id',
     ];
 
     protected $casts = [
@@ -36,5 +37,9 @@ class Movimiento extends Model
     public function categoria(): BelongsTo
     {
         return $this->belongsTo(Categoria::class);
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

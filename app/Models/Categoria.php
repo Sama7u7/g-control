@@ -7,10 +7,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Categoria extends Model
 {
-    protected $fillable = ['nombre', 'icono'];
+    protected $fillable = [
+        'nombre',
+        'icono',
+        'user_id',
+        ];
 
     public function movimientos(): HasMany
     {
         return $this->hasMany(Movimiento::class);
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

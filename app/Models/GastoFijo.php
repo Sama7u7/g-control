@@ -23,6 +23,7 @@ class GastoFijo extends Model
         'cobrable_type',
         'categoria_id',
         'notas',
+        'user_id',
     ];
 
     protected $casts = [
@@ -49,6 +50,10 @@ class GastoFijo extends Model
     public function categoria(): BelongsTo
     {
         return $this->belongsTo(Categoria::class);
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 
     // ─── Accessors ────────────────────────────────────────────────────────────

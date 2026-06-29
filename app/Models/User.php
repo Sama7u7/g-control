@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password','timezone'])]
+#[Fillable(['name', 'last_name', 'username', 'email', 'password','timezone'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -28,5 +28,35 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function cuentas()
+    {
+        return $this->hasMany(Cuenta::class);
+    }
+
+    public function tarjetasCredito()
+    {
+        return $this->hasMany(TarjetaCredito::class);
+    }
+
+    public function categorias()
+    {
+        return $this->hasMany(Categoria::class);
+    }
+
+    public function movimientos()
+    {
+        return $this->hasMany(Movimiento::class);
+    }
+
+    public function abonos()
+    {
+        return $this->hasMany(Abono::class);
+    }
+
+    public function gastosFijos()
+    {
+        return $this->hasMany(GastoFijo::class);
     }
 }

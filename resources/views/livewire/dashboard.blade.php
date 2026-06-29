@@ -13,15 +13,26 @@ new class extends Component {
 
     public function with()
     {
-        $cuentas_lista = Cuenta::all();
-        $tarjetas_lista = TarjetaCredito::all();
+        // 1. Traemos SOLO las cuentas del usuario activo
+        $cuentas_lista = auth()->user()->cuentas()->get();
+
+        // 2. Traemos SOLO las tarjetas del usuario activo
+        $tarjetas_lista = auth()->user()->tarjetasCredito()->get();
 
         // Usamos saldo_total para que el resumen incluya rendimientos diarios
         $activos = $cuentas_lista->sum('saldo_total');
         $pasivos = $tarjetas_lista->sum->deuda_actual;
         $patrimonioNeto = $activos - $pasivos;
 
-        $gastosMes = Movimiento::query()->where('tipo', 'gasto')->whereMonth('fecha', now()->month)->whereYear('fecha', now()->year)->select('categoria_id', DB::raw('SUM(monto) as total'))->groupBy('categoria_id')->with('categoria')->get();
+        // 3. Filtramos los movimientos arrancando desde la relación del usuario
+        $gastosMes = auth()->user()->movimientos()
+            ->where('tipo', 'gasto')
+            ->whereMonth('fecha', now()->month)
+            ->whereYear('fecha', now()->year)
+            ->select('categoria_id', DB::raw('SUM(monto) as total'))
+            ->groupBy('categoria_id')
+            ->with('categoria')
+            ->get();
 
         return [
             'patrimonioNeto' => $patrimonioNeto,
@@ -44,7 +55,7 @@ new class extends Component {
     {{-- Header --}}
     <header class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 class="font-display font-extrabold text-[2rem] tracking-[-0.03em] text-ink leading-tight">Tu varo.</h1>
+            <h1 class="font-display font-extrabold text-[2rem] tracking-[-0.03em] text-ink leading-tight">Hola {{ auth()->user()->name }}</h1>
             <p class="font-body font-normal text-muted text-[0.95rem]">Así va el flujo del dinero hoy.</p>
         </div>
         <div class="px-5 py-2 bg-white rounded-sys-pill border border-border flex items-center gap-3">

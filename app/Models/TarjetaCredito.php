@@ -11,9 +11,10 @@ class TarjetaCredito extends Model
         'nombre',
         'limite_credito',
         'dia_corte',
-        'dia_pago',    // ← estaba ausente
+        'dia_pago',
         'color',
-        'activo',      // ← estaba ausente
+        'activo',
+        'user_id',
     ];
 
     protected $table = 'tarjetas_credito';
@@ -33,6 +34,10 @@ class TarjetaCredito extends Model
     public function movimientos(): MorphMany
     {
         return $this->morphMany(Movimiento::class, 'movible');
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 
     // ─── Accessors ────────────────────────────────────────────────────────────
