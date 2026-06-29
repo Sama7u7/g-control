@@ -28,5 +28,24 @@ class DatabaseSeeder extends Seeder
             Categoria::create($cat);
         }
 
+        // 2. CUENTAS DE PRUEBA
+        $usuario = \App\Models\User::factory()->create([
+            'name' => 'Usuario 1',
+            'last_name' => 'Prueba',
+            'username' => 'user1',
+            'password' => bcrypt('password'),
+            'email' => 'user1@mail.com',
+        ]);
+
+                // 2. CUENTAS DE PRUEBA
+        $usuario = \App\Models\User::factory()->create([
+            'name' => 'Usuario 2',
+            'last_name' => 'Prueba',
+            'username' => 'user2',
+            'password' => bcrypt('password'),
+            'email' => 'user2@mail.com',
+        ]);
+
+
     }
 }

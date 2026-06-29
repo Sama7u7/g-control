@@ -11,7 +11,7 @@ new #[Title('Historial - Mi Varo'), Layout('components.layouts.app')] class exte
     // Filtros
     public $mes;
     public $categoria_id;
-    public $tipo_movible; // 'cuenta' o 'tarjeta'
+    public $tipo_movible;
     public $busqueda = '';
 
     // Estado de Edición
@@ -28,10 +28,10 @@ new #[Title('Historial - Mi Varo'), Layout('components.layouts.app')] class exte
         $this->resetPage();
     }
 
-    // --- Lógica de Edición ---
     public function abrirEdicion($id)
     {
-        $mov = Movimiento::find($id);
+        // Seguro: Solo busca en los movimientos del usuario
+        $mov = auth()->user()->movimientos()->findOrFail($id);
         $this->editando_id = $id;
         $this->edit_concepto = $mov->concepto;
         $this->edit_monto = $mov->monto;
@@ -52,7 +52,7 @@ new #[Title('Historial - Mi Varo'), Layout('components.layouts.app')] class exte
             'edit_fecha' => 'required|date',
         ]);
 
-        $mov = Movimiento::find($this->editando_id);
+        $mov = auth()->user()->movimientos()->findOrFail($this->editando_id);
         $mov->update([
             'concepto' => mb_strtoupper($this->edit_concepto),
             'monto' => $this->edit_monto,
@@ -64,18 +64,26 @@ new #[Title('Historial - Mi Varo'), Layout('components.layouts.app')] class exte
         session()->flash('ok', 'Movimiento actualizado correctamente.');
     }
 
-    // --- Lógica de Eliminación ---
     public function eliminar($id)
     {
-        Movimiento::destroy($id);
+        auth()->user()->movimientos()->findOrFail($id)->delete();
         session()->flash('ok', 'Movimiento eliminado. Los balances se han recalculado.');
     }
 
     public function with()
     {
-        $query = Movimiento::with(['movible', 'categoria'])
+        $query = auth()
+            ->user()
+            ->movimientos()
+            ->with(['movible', 'categoria'])
             ->when($this->busqueda, fn($q) => $q->where('concepto', 'like', "%{$this->busqueda}%"))
-            ->when($this->mes, fn($q) => $q->whereMonth('fecha', explode('-', $this->mes)[1])->whereYear('fecha', explode('-', $this->mes)[0]))
+            ->when($this->mes, function ($q) {
+                // Convertimos "YYYY-MM" en el primer y último día del mes
+                $inicio = \Carbon\Carbon::createFromFormat('Y-m', $this->mes)->startOfMonth()->toDateString();
+                $fin = \Carbon\Carbon::createFromFormat('Y-m', $this->mes)->endOfMonth()->toDateString();
+
+                return $q->whereBetween('fecha', [$inicio, $fin]);
+            })
             ->when($this->categoria_id, fn($q) => $q->where('categoria_id', $this->categoria_id))
             ->when($this->tipo_movible, function ($q) {
                 $class = $this->tipo_movible === 'cuenta' ? Cuenta::class : TarjetaCredito::class;
@@ -86,7 +94,10 @@ new #[Title('Historial - Mi Varo'), Layout('components.layouts.app')] class exte
 
         return [
             'movimientos' => $query->paginate(20),
-            'categorias' => Categoria::orderBy('nombre')->get(),
+            'categorias' => Categoria::whereNull('user_id')
+                ->orWhere('user_id', auth()->id())
+                ->orderBy('nombre')
+                ->get(),
         ];
     }
 }; ?>

@@ -11,13 +11,33 @@ new class extends Component {
 
     public function with()
     {
-        $mesActual = now()->month;
-        $anioActual = now()->year;
+        $user = auth()->user();
+
+        // Creamos las fechas exactas de inicio y fin de mes (Formato: YYYY-MM-DD)
+        $inicioMes = now()->startOfMonth()->toDateString();
+        $finMes = now()->endOfMonth()->toDateString();
 
         return [
-            'totalIngresos' => Movimiento::where('tipo', 'ingreso')->whereMonth('fecha', $mesActual)->whereYear('fecha', $anioActual)->sum('monto'),
-            'totalGastos' => Movimiento::where('tipo', 'gasto')->whereMonth('fecha', $mesActual)->whereYear('fecha', $anioActual)->sum('monto'),
-            'movimientos' => Movimiento::whereMonth('fecha', $mesActual)->whereYear('fecha', $anioActual)->latest('fecha')->get(),
+            // Usamos whereBetween para un filtrado seguro y universal
+            'totalIngresos' =>
+                $user
+                    ->movimientos()
+                    ->where('tipo', 'ingreso')
+                    ->whereBetween('fecha', [$inicioMes, $finMes])
+                    ->sum('monto') ?? 0,
+
+            'totalGastos' =>
+                $user
+                    ->movimientos()
+                    ->where('tipo', 'gasto')
+                    ->whereBetween('fecha', [$inicioMes, $finMes])
+                    ->sum('monto') ?? 0,
+
+            'movimientos' => $user
+                ->movimientos()
+                ->whereBetween('fecha', [$inicioMes, $finMes])
+                ->latest('fecha')
+                ->get(),
         ];
     }
 }; ?>

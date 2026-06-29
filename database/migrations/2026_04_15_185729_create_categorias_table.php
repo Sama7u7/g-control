@@ -13,7 +13,7 @@ public function up(): void
 {
     Schema::create('categorias', function (Blueprint $table) {
         $table->id();
-        $table->string('nombre')->unique(); // Evitamos duplicados
+        $table->string('nombre');
         $table->string('icono')->default('🏷️'); // Emoji por defecto
         $table->timestamps();
     });

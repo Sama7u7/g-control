@@ -19,7 +19,7 @@ new class extends Component {
         $this->fecha = date('Y-m-d');
     }
 
-    public function guardar()
+public function guardar()
     {
         $this->validate([
             'monto' => 'required|numeric|min:0.01',
@@ -29,11 +29,11 @@ new class extends Component {
             'categoria_id' => $this->tipo === 'gasto' ? 'required|exists:categorias,id' : 'nullable',
         ]);
 
-        // Lógica Polimórfica
         [$tipoSeleccionado, $id] = explode('-', $this->destino_id);
         $modelo = $tipoSeleccionado === 'cuenta' ? Cuenta::class : TarjetaCredito::class;
 
-        Movimiento::create([
+        // Asegúrate de usar la relación del usuario logueado
+        auth()->user()->movimientos()->create([
             'monto' => $this->monto,
             'concepto' => mb_strtoupper($this->concepto),
             'tipo' => $this->tipo,
@@ -41,19 +41,20 @@ new class extends Component {
             'movible_id' => $id,
             'movible_type' => $modelo,
             'categoria_id' => $this->tipo === 'gasto' ? $this->categoria_id : null,
+            // Laravel inserta el user_id automáticamente al llamar a ->movimientos()->create()
         ]);
 
         session()->flash('ok', '¡Varo registrado! 💸');
         $this->reset(['monto', 'concepto', 'categoria_id', 'destino_id']);
         $this->dispatch('movimiento-registrado');
     }
-
     public function with()
     {
+        $user = auth()->user();
         return [
-            'cuentas' => Cuenta::orderBy('nombre')->get(),
-            'tarjetas' => TarjetaCredito::orderBy('nombre')->get(),
-            'categorias' => Categoria::orderBy('nombre')->get(),
+            'cuentas' => $user->cuentas()->orderBy('nombre')->get(),
+            'tarjetas' => $user->tarjetasCredito()->orderBy('nombre')->get(),
+            'categorias' => Categoria::whereNull('user_id')->orWhere('user_id', $user->id)->orderBy('nombre')->get(),
         ];
     }
 }; ?>

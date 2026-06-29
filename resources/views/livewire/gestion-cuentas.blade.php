@@ -4,6 +4,7 @@ use Livewire\Volt\Component;
 use App\Models\{Cuenta, TarjetaCredito, Categoria, Movimiento, GastoFijo};
 use Livewire\Attributes\{Title, Layout};
 use Livewire\WithFileUploads;
+use Illuminate\Validation\Rule;
 
 new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extends Component {
     use WithFileUploads;
@@ -85,7 +86,7 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
 
     public function editarCuenta($id): void
     {
-        $c = Cuenta::find($id);
+        $c = auth()->user()->cuentas()->findOrFail($id);
         $this->editando_id = $id;
         $this->nombre = $c->nombre;
         $this->color = $c->color;
@@ -104,7 +105,7 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
 
     public function editarTarjeta($id): void
     {
-        $t = TarjetaCredito::find($id);
+        $t = auth()->user()->tarjetasCredito()->findOrFail($id);
         $this->editando_id = $id;
         $this->nombre = $t->nombre;
         $this->color = $t->color;
@@ -116,7 +117,17 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
 
     public function editarCategoria($id): void
     {
-        $cat = Categoria::find($id);
+        // Buscamos primero en todo el sistema (globales + personales)
+        $cat = Categoria::whereNull('user_id')
+            ->orWhere('user_id', auth()->id())
+            ->where('id', $id) // Buscamos por el ID específico
+            ->first();
+
+        // Si no existe, lanzamos el error manualmente para entender por qué
+        if (!$cat) {
+            abort(404, "La categoría con ID $id no pertenece a tu usuario o no es global.");
+        }
+
         $this->editando_id = $id;
         $this->nombre_categoria = $cat->nombre;
         $this->icono_categoria = $cat->icono ?? '🏷️';
@@ -124,7 +135,7 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
 
     public function editarGastoFijo($id): void
     {
-        $g = GastoFijo::find($id);
+        $g = auth()->user()->gastosFijos()->findOrFail($id);
         $this->editando_id = $id;
         $this->gf_nombre = $g->nombre;
         $this->gf_monto = $g->monto;
@@ -149,54 +160,54 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
 
     public function eliminarCategoria($id): void
     {
-        Categoria::destroy($id);
+        auth()->user()->categorias()->findOrFail($id)->delete();
         session()->flash('ok', 'Categoría eliminada');
         $this->limpiar();
     }
 
     public function eliminarGastoFijo($id): void
     {
-        GastoFijo::destroy($id);
+        auth()->user()->gastosFijos()->findOrFail($id)->delete();
         session()->flash('ok', 'Gasto fijo eliminado');
         $this->limpiar();
     }
 
     public function registrarGastoAhora($id): void
     {
-        $gasto = GastoFijo::find($id);
+        $gasto = auth()->user()->gastosFijos()->findOrFail($id);
         $gasto->registrarMovimiento();
         session()->flash('ok', $gasto->nombre . ' registrado como movimiento');
     }
-
     public function sincronizarSaldo($id): void
     {
-    $this->validate(['nuevo_saldo_real' => 'required|numeric']);
+        $this->validate(['nuevo_saldo_real' => 'required|numeric']);
+        $c = auth()->user()->cuentas()->findOrFail($id);
 
-    $c = Cuenta::find($id);
+        // Cambiamos saldo_total por saldo_actual
+        $diferencia = $this->nuevo_saldo_real - $c->saldo_actual;
 
-    // Cambiamos saldo_total por saldo_actual
-    $diferencia = $this->nuevo_saldo_real - $c->saldo_actual;
+        if ($diferencia != 0) {
+            Movimiento::create([
+                'monto' => abs($diferencia),
+                'concepto' => 'AJUSTE / CAPITALIZACIÓN',
+                'tipo' => $diferencia > 0 ? 'ingreso' : 'gasto',
+                'fecha' => now()->toDateString(),
+                'movible_id' => $c->id,
+                'movible_type' => Cuenta::class,
+            ]);
+        }
 
-    if ($diferencia != 0) {
-        Movimiento::create([
-            'monto' => abs($diferencia),
-            'concepto' => 'AJUSTE / CAPITALIZACIÓN',
-            'tipo' => $diferencia > 0 ? 'ingreso' : 'gasto',
-            'fecha' => now()->toDateString(),
-            'movible_id' => $c->id,
-            'movible_type' => Cuenta::class,
-        ]);
-    }
+        // El reloj se reinicia, pero ahora el dinero ya está consolidado en el historial
+        $c->update(['ultima_actualizacion' => now()->toDateString()]);
 
-    // El reloj se reinicia, pero ahora el dinero ya está consolidado en el historial
-    $c->update(['ultima_actualizacion' => now()->toDateString()]);
-
-    session()->flash('ok', 'Saldo sincronizado y rendimientos capitalizados');
-    $this->limpiar();
+        session()->flash('ok', 'Saldo sincronizado y rendimientos capitalizados');
+        $this->limpiar();
     }
 
     public function guardar(): void
     {
+        $user = auth()->user();
+
         if ($this->tab === 'cuentas') {
             $this->validate([
                 'nombre' => 'required|min:2',
@@ -218,7 +229,9 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                 'tope_rendimiento' => $this->mostrarRendimiento ? $this->tope_rendimiento : null,
                 'tasa_excedente' => $this->mostrarRendimiento ? $this->tasa_excedente : null,
             ];
-            $this->editando_id ? Cuenta::find($this->editando_id)->update($data) : Cuenta::create($data);
+
+            // Corrección aquí: Usamos la relación del usuario para crear o editar
+            $this->editando_id ? $user->cuentas()->findOrFail($this->editando_id)->update($data) : $user->cuentas()->create($data);
         } elseif ($this->tab === 'tarjetas') {
             $this->validate([
                 'nombre' => 'required|min:2',
@@ -234,17 +247,51 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                 'color' => $this->color,
                 'activo' => $this->activo,
             ];
-            $this->editando_id ? TarjetaCredito::find($this->editando_id)->update($data) : TarjetaCredito::create($data);
+
+            // Corrección aquí
+            $this->editando_id ? $user->tarjetasCredito()->findOrFail($this->editando_id)->update($data) : $user->tarjetasCredito()->create($data);
         } elseif ($this->tab === 'categorias') {
-            $this->validate([
-                'nombre_categoria' => 'required|min:3',
-                'icono_categoria' => 'required',
-            ]);
+            // 1. Normalizamos a mayúsculas ANTES de validar
+            $this->nombre_categoria = mb_strtoupper($this->nombre_categoria);
+
+            // 2. Ahora validamos con el nombre ya en mayúsculas
+            $this->validate(
+                [
+                    'nombre_categoria' => [
+                        'required',
+                        'min:3',
+                        Rule::unique('categorias', 'nombre')
+                            ->where(function ($query) {
+                                return $query->where('user_id', auth()->id());
+                            })
+                            ->ignore($this->editando_id),
+                    ],
+                    'icono_categoria' => 'required',
+                ],
+                [
+                    // Aquí es donde personalizas el mensaje
+                    'nombre_categoria.unique' => 'Ya tienes una categoría con este nombre.',
+                    'nombre_categoria.required' => 'El nombre es obligatorio.',
+                    'nombre_categoria.min' => 'El nombre debe tener al menos 3 caracteres.',
+                ],
+            );
+            // Si es edición, verificamos si es global
+            if ($this->editando_id) {
+                $cat = Categoria::findOrFail($this->editando_id);
+                if (is_null($cat->user_id)) {
+                    session()->flash('ok', 'No puedes editar categorías globales.');
+                    $this->limpiar();
+                    return;
+                }
+            }
+
             $data = [
-                'nombre' => mb_strtoupper($this->nombre_categoria),
+                'nombre' => $this->nombre_categoria, // Ya está en mayúsculas
                 'icono' => $this->icono_categoria,
+                'user_id' => auth()->id(),
             ];
-            $this->editando_id ? Categoria::find($this->editando_id)->update($data) : Categoria::create($data);
+
+            $this->editando_id ? auth()->user()->categorias()->findOrFail($this->editando_id)->update($data) : auth()->user()->categorias()->create($data);
         } elseif ($this->tab === 'gastos') {
             $this->validate([
                 'gf_nombre' => 'required|min:2',
@@ -270,7 +317,9 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                 'cobrable_type' => $cobrableType && $this->gf_cobrable_id ? $cobrableType : null,
                 'proxima_fecha' => GastoFijo::calcularProximaFecha($this->gf_frecuencia, $this->gf_dia_cobro),
             ];
-            $this->editando_id ? GastoFijo::find($this->editando_id)->update($data) : GastoFijo::create($data);
+
+            // Corrección aquí
+            $this->editando_id ? $user->gastosFijos()->findOrFail($this->editando_id)->update($data) : $user->gastosFijos()->create($data);
         } elseif ($this->tab === 'perfil') {
             $this->guardarPerfil();
             return;
@@ -279,7 +328,6 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
         session()->flash('ok', 'Datos guardados correctamente');
         $this->limpiar();
     }
-
     public function guardarPerfil(): void
     {
         if (auth()->check()) {
@@ -298,16 +346,20 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
         $allTimezones = \DateTimeZone::listIdentifiers(\DateTimeZone::AMERICA);
         $preferidas = ['America/Mexico_City', 'America/Monterrey', 'America/Merida', 'America/Tijuana', 'America/Cancun'];
 
+        $user = auth()->user();
+
         return [
-            'cuentas' => Cuenta::all(),
-            'tarjetas' => TarjetaCredito::all(),
-            'categorias' => Categoria::orderBy('nombre')->get(),
-            'gastos_fijos' => GastoFijo::with(['categoria', 'cobrable'])
+            'cuentas' => $user->cuentas,
+            'tarjetas' => $user->tarjetasCredito,
+            'categorias' => Categoria::whereNull('user_id')->orWhere('user_id', $user->id)->orderBy('nombre')->get(),
+            'gastos_fijos' => $user
+                ->gastosFijos()
+                ->with(['categoria', 'cobrable'])
                 ->orderBy('proxima_fecha')
                 ->get(),
             'timezones' => array_unique(array_merge($preferidas, $allTimezones)),
-            'total_mensual' => GastoFijo::where('activo', true)->get()->sum->monto_mensual_equivalente,
-            'proximos_siete' => GastoFijo::proximos(7)->count(),
+            'total_mensual' => $user->gastosFijos()->where('activo', true)->get()->sum->monto_mensual_equivalente,
+            'proximos_siete' => $user->gastosFijos()->proximos(7)->count(),
         ];
     }
     public function importarGastos(): void
@@ -868,7 +920,9 @@ new #[Title('Ajustes - Mi Varo'), Layout('components.layouts.app')] class extend
                                             class="font-body text-[0.65rem] font-normal text-hint bg-surface px-2 py-0.5 rounded border border-border">ID:
                                             {{ $tarjeta->id }}</span>
                                     </h4>
-
+                                    <!-- AQUI AGREGAMOS EL LÍMITE DE LA TARJETA -->
+                                    <p class="font-body text-[0.82rem] font-light text-muted mt-0.5">Límite:
+                                        ${{ number_format($tarjeta->limite_credito, 2) }}</p>
                                 </div>
                             </div>
                             <div class="text-right">
