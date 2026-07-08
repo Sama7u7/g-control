@@ -17,12 +17,32 @@ class Movimiento extends Model
         'movible_type',  // ← corregido
         'categoria_id',
         'user_id',
+        'transferencia_id', // ← agregado para la relación de transferencia
     ];
 
     protected $casts = [
         'fecha' => 'date',
         'monto' => 'decimal:2',
     ];
+    // ─── Accesors ───────────────────────────────────────────────────────────
+    /**
+     * Obtiene el nombre de la categoría para mostrar en el Dashboard.
+     */
+    public function getEtiquetaCategoriaAttribute()
+    {
+        // Si tiene un ID de transferencia, sabemos que es un traspaso
+        if ($this->transferencia_id !== null) {
+            return '🔄 Traspaso';
+        }
+
+        // Si tiene una categoría real asignada, devolvemos su nombre
+        if ($this->categoria_id !== null && $this->categoria) {
+            return $this->categoria->nombre;
+        }
+
+        // Si realmente no tiene nada
+        return 'Sin categoría';
+    }
 
     // ─── Relaciones ───────────────────────────────────────────────────────────
 
