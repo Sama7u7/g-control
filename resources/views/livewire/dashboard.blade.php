@@ -196,13 +196,20 @@ new class extends Component {
                 </h3>
                 <div class="grid gap-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
                     @foreach ($tarjetas_lista as $t)
-                        <div class="bg-white p-3 rounded-xl border border-border space-y-2 shadow-sm">
-                            <div class="flex justify-between items-start">
+                        <div wire:click="$dispatch('abrir-modal-abono', { tarjetaId: {{ $t->id }} })"
+                            class="bg-white p-3 rounded-xl border border-border shadow-sm cursor-pointer transition-all hover:border-accent group">
+
+                            <div class="flex justify-between items-center mb-2">
                                 <div class="flex items-center gap-2.5">
                                     <div class="w-1.5 h-7 rounded-full" style="background-color: {{ $t->color }}">
                                     </div>
                                     <div>
                                         <p class="font-display font-bold text-[0.85rem] text-ink">{{ $t->nombre }}
+                                        </p>
+                                        {{-- Texto siempre visible, pero con un color sutil --}}
+                                        <p
+                                            class="text-[0.6rem] font-bold uppercase tracking-wider text-muted group-hover:text-accent transition-colors">
+                                            + Abonar saldo
                                         </p>
                                     </div>
                                 </div>
@@ -212,8 +219,10 @@ new class extends Component {
                                     </p>
                                 </div>
                             </div>
+
+                            {{-- Barra de progreso --}}
                             @php $porcentaje = ($t->limite_credito > 0) ? ($t->deuda_actual / $t->limite_credito) * 100 : 0; @endphp
-                            <div class="w-full h-1.5 bg-surface rounded-full overflow-hidden mt-1">
+                            <div class="w-full h-1.5 bg-surface rounded-full overflow-hidden">
                                 <div class="h-full rounded-full transition-all duration-1000"
                                     style="width: {{ $porcentaje }}%; background-color: {{ $porcentaje > 80 ? 'var(--rose)' : $t->color }}">
                                 </div>
@@ -309,6 +318,7 @@ new class extends Component {
         </div>
 
     </div>
+    @livewire('modal-abono')
 
     {{-- ESTILOS PARA SCROLLBARS INTERNOS --}}
     <style>

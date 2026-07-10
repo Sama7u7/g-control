@@ -1,5 +1,5 @@
 <?php
-
+use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 use App\Models\{Movimiento, Categoria, Cuenta, TarjetaCredito};
 use Livewire\WithPagination;

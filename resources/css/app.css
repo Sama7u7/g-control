@@ -1,3 +1,34 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+
+/* Configuracion Nativa para Tailwind v4 (Reemplaza al tailwind.config.js) */
+@theme {
+  --color-ink: #0D0D0F;
+  --color-muted: #6B6B78;
+  --color-hint: #A8A8B0;
+  --color-surface: #F7F6F3;
+  --color-accent: #4F3FF0;
+  --color-accent-light: #EAE8FF;
+  --color-green: #16A34A;
+  --color-green-light: #DCFCE7;
+  --color-amber: #D97706;
+  --color-amber-light: #FEF3C7;
+  --color-rose: #E11D48;
+  --color-rose-light: #FFE4E6;
+  --color-border: rgba(0,0,0,0.08);
+
+  --font-display: "Syne", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+
+  --radius-sys-tag: 4px;
+  --radius-sys-input: 8px;
+  --radius-sys-stat: 12px;
+  --radius-sys-card: 20px;
+  --radius-sys-pill: 100px;
+}
+
+@layer base {
+  html, body {
+    @apply antialiased;
+  }
+}

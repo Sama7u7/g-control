@@ -1,4 +1,5 @@
 <?php
+use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 use Livewire\WithPagination; // 🚨 1. Importamos la clase de paginación
 use App\Models\Movimiento;
@@ -6,6 +7,7 @@ use App\Models\Movimiento;
 new class extends Component {
     use WithPagination; // 🚨 2. Activamos la paginación en el componente
 
+    #[On('movimiento-registrado')]
     public function with()
     {
         return [
